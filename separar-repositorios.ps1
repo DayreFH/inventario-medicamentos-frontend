@@ -1,17 +1,23 @@
 # Script para separar backend y frontend en repositorios independientes
-# Ejecutar: .\separar-repositorios.ps1
+# Ejecutar: .\separar-repositorios.ps1 [usuario-github]
+
+param(
+    [string]$githubUser = ""
+)
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Separar Repositorios - Backend y Frontend" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Solicitar usuario de GitHub
-$githubUser = Read-Host "Ingresa tu usuario de GitHub"
-
+# Solicitar usuario de GitHub si no se proporcionó como parámetro
 if ([string]::IsNullOrWhiteSpace($githubUser)) {
-    Write-Host "❌ Error: Debes ingresar tu usuario de GitHub" -ForegroundColor Red
-    exit 1
+    $githubUser = Read-Host "Ingresa tu usuario de GitHub"
+    
+    if ([string]::IsNullOrWhiteSpace($githubUser)) {
+        Write-Host "❌ Error: Debes ingresar tu usuario de GitHub" -ForegroundColor Red
+        exit 1
+    }
 }
 
 # URLs de los repositorios
@@ -24,11 +30,11 @@ Write-Host "   Backend:  $backendRepo" -ForegroundColor White
 Write-Host "   Frontend: $frontendRepo" -ForegroundColor White
 Write-Host ""
 
-$confirm = Read-Host "¿Los repositorios ya existen en GitHub? (S/N)"
+$confirm = Read-Host "Los repositorios ya existen en GitHub? (S/N)"
 
 if ($confirm -ne "S" -and $confirm -ne "s") {
     Write-Host ""
-    Write-Host "⚠️  IMPORTANTE: Primero crea los repositorios en GitHub:" -ForegroundColor Yellow
+    Write-Host "IMPORTANTE: Primero crea los repositorios en GitHub:" -ForegroundColor Yellow
     Write-Host "   1. Ve a https://github.com/new" -ForegroundColor White
     Write-Host "   2. Crea: inventario-medicamentos-backend" -ForegroundColor White
     Write-Host "   3. Crea: inventario-medicamentos-frontend" -ForegroundColor White
@@ -67,10 +73,14 @@ if (Test-Path $backendTemp) {
 
 New-Item -ItemType Directory -Path $backendTemp | Out-Null
 
-# Copiar archivos del backend
-Write-Host "📁 Copiando archivos del backend..." -ForegroundColor Yellow
+# Copiar archivos del backend (excluyendo node_modules)
+Write-Host "Copiando archivos del backend..." -ForegroundColor Yellow
 Get-ChildItem -Path $backendPath -Exclude node_modules | ForEach-Object {
-    Copy-Item -Path $_.FullName -Destination $backendTemp -Recurse -Force
+    if ($_.PSIsContainer) {
+        Copy-Item -Path $_.FullName -Destination $backendTemp -Recurse -Force -Exclude node_modules
+    } else {
+        Copy-Item -Path $_.FullName -Destination $backendTemp -Force
+    }
 }
 
 # Inicializar git
@@ -115,10 +125,14 @@ if (Test-Path $frontendTemp) {
 
 New-Item -ItemType Directory -Path $frontendTemp | Out-Null
 
-# Copiar archivos del frontend
-Write-Host "📁 Copiando archivos del frontend..." -ForegroundColor Yellow
+# Copiar archivos del frontend (excluyendo node_modules)
+Write-Host "Copiando archivos del frontend..." -ForegroundColor Yellow
 Get-ChildItem -Path $frontendPath -Exclude node_modules | ForEach-Object {
-    Copy-Item -Path $_.FullName -Destination $frontendTemp -Recurse -Force
+    if ($_.PSIsContainer) {
+        Copy-Item -Path $_.FullName -Destination $frontendTemp -Recurse -Force -Exclude node_modules
+    } else {
+        Copy-Item -Path $_.FullName -Destination $frontendTemp -Force
+    }
 }
 
 # Inicializar git
@@ -178,6 +192,6 @@ Write-Host "   1. Verifica los repositorios en GitHub" -ForegroundColor White
 Write-Host "   2. Conecta cada repositorio a Railway" -ForegroundColor White
 Write-Host "   3. Configura las variables de entorno" -ForegroundColor White
 Write-Host ""
-Write-Host "📖 Lee SEPARAR-REPOSITORIOS.md para más detalles" -ForegroundColor Cyan
+Write-Host '📖 Lee SEPARAR-REPOSITORIOS.md para mas detalles' -ForegroundColor Cyan
 Write-Host ""
 
