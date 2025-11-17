@@ -75,12 +75,13 @@ New-Item -ItemType Directory -Path $backendTemp | Out-Null
 
 # Copiar archivos del backend (excluyendo node_modules)
 Write-Host "Copiando archivos del backend..." -ForegroundColor Yellow
-Get-ChildItem -Path $backendPath -Exclude node_modules | ForEach-Object {
-    if ($_.PSIsContainer) {
-        Copy-Item -Path $_.FullName -Destination $backendTemp -Recurse -Force -Exclude node_modules
-    } else {
-        Copy-Item -Path $_.FullName -Destination $backendTemp -Force
-    }
+$excludeDirs = @('node_modules', '.git')
+Get-ChildItem -Path $backendPath -Directory | Where-Object { $excludeDirs -notcontains $_.Name } | ForEach-Object {
+    $destPath = Join-Path $backendTemp $_.Name
+    Copy-Item -Path $_.FullName -Destination $destPath -Recurse -Force
+}
+Get-ChildItem -Path $backendPath -File | ForEach-Object {
+    Copy-Item -Path $_.FullName -Destination $backendTemp -Force
 }
 
 # Inicializar git
@@ -127,12 +128,13 @@ New-Item -ItemType Directory -Path $frontendTemp | Out-Null
 
 # Copiar archivos del frontend (excluyendo node_modules)
 Write-Host "Copiando archivos del frontend..." -ForegroundColor Yellow
-Get-ChildItem -Path $frontendPath -Exclude node_modules | ForEach-Object {
-    if ($_.PSIsContainer) {
-        Copy-Item -Path $_.FullName -Destination $frontendTemp -Recurse -Force -Exclude node_modules
-    } else {
-        Copy-Item -Path $_.FullName -Destination $frontendTemp -Force
-    }
+$excludeDirs = @('node_modules', '.git', 'dist')
+Get-ChildItem -Path $frontendPath -Directory | Where-Object { $excludeDirs -notcontains $_.Name } | ForEach-Object {
+    $destPath = Join-Path $frontendTemp $_.Name
+    Copy-Item -Path $_.FullName -Destination $destPath -Recurse -Force
+}
+Get-ChildItem -Path $frontendPath -File | ForEach-Object {
+    Copy-Item -Path $_.FullName -Destination $frontendTemp -Force
 }
 
 # Inicializar git
