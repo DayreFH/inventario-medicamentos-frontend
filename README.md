@@ -14,6 +14,7 @@ Sistema completo de gestión de inventario de medicamentos con frontend React y 
 | **[RAILWAY-SEPARADO.md](./RAILWAY-SEPARADO.md)** | 🚂 **Railway separado** - Backend y Frontend independientes | 30-40 min | ⭐⭐☆☆☆ |
 | **[README-DEPLOYMENT.md](./README-DEPLOYMENT.md)** | Guía rápida Railway + Vercel | 20-30 min | ⭐⭐☆☆☆ |
 | **[DEPLOYMENT-GUIDE.md](./DEPLOYMENT-GUIDE.md)** | Guía completa con todas las opciones | 30-60 min | ⭐⭐⭐☆☆ |
+| **[MIGRAR-BD-RAILWAY.md](./MIGRAR-BD-RAILWAY.md)** | 📦 **Migrar datos** de BD local a Railway | 15-30 min | ⭐⭐☆☆☆ |
 | **[HOSTING-DOMINICANA.md](./HOSTING-DOMINICANA.md)** | Opciones de hosting en RD | Variable | ⭐⭐⭐⭐☆ |
 | **[SECURITY-PRODUCTION.md](./SECURITY-PRODUCTION.md)** | Seguridad para producción | 15 min lectura | ⭐⭐⭐☆☆ |
 

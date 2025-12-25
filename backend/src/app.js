@@ -13,6 +13,8 @@ import exchangeRates from './routes/exchangeRates.js';
 import exchangeRatesMN from './routes/exchangeRatesMN.js';
 import shippingRates from './routes/shippingRates.js';
 import utilityRates from './routes/utilityRates.js';
+import users from './routes/users.js';
+import roles from './routes/roles.js';
 import schedulerService from './services/scheduler.js';
 
 const app = express();
@@ -20,9 +22,6 @@ const app = express();
 // ============================================================
 // CONFIGURACIÓN DE SEGURIDAD
 // ============================================================
-
-// Trust proxy - Necesario para Railway y otros servicios detrás de proxy
-app.set('trust proxy', true);
 
 // CORS configurado correctamente
 const corsOptions = {
@@ -89,6 +88,8 @@ app.use('/api/exchange-rates', authenticate, exchangeRates);
 app.use('/api/exchange-rates-mn', authenticate, exchangeRatesMN);
 app.use('/api/shipping-rates', authenticate, shippingRates);
 app.use('/api/utility-rates', authenticate, utilityRates);
+app.use('/api/users', authenticate, users);
+app.use('/api/roles', authenticate, roles);
 
 // Iniciar el scheduler de tasas de cambio
 schedulerService.start();

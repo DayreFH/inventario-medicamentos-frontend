@@ -32,8 +32,8 @@ const Navigation = () => {
       children: [
         { title: 'Tasa de Cambio DOP-USD', path: '/admin/dop-usd' },
         { title: 'Tasa de Cambio USD-MN', path: '/admin/usd-mn' },
-        { title: 'Tasa de Envío', path: '/admin/shipping' },
-        { title: '% de Utilidad', path: '/admin/utility' }
+        { title: 'Tasa de Envío', path: '/admin/shipping' }
+        // ❌ ELIMINADO: { title: '% de Utilidad', path: '/admin/utility' }
       ]
     },
     {
@@ -58,6 +58,14 @@ const Navigation = () => {
       icon: '💰',
       children: [
         { title: 'Reporte', path: '/finanzas/reportes' }
+      ]
+    },
+    {
+      title: 'GESTIÓN DE USUARIOS',
+      icon: '👥',
+      children: [
+        { title: 'Usuarios', path: '/users' },
+        { title: 'Roles', path: '/roles' }
       ]
     }
   ];

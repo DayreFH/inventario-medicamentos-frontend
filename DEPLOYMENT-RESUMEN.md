@@ -222,3 +222,10 @@ Si necesitas ayuda adicional:
 Tu Sistema de Inventario de Medicamentos está listo para el mundo.
 
 
+
+
+
+
+
+
+

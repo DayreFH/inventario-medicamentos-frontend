@@ -151,3 +151,10 @@ git push
 Railway y Vercel se actualizarán automáticamente.
 
 
+
+
+
+
+
+
+

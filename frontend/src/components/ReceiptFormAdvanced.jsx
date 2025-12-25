@@ -375,8 +375,9 @@ const ReceiptFormAdvanced = () => {
         // Calcular nueva cantidad total
         const newTotalQuantity = existingItem.quantity + currentItem.quantity;
         
-        // Recalcular subtotal
+        // Recalcular subtotales
         const newSubtotalUSD = existingItem.precioVentaUSD * newTotalQuantity;
+        const newSubtotalDOP = existingItem.precioCompra * newTotalQuantity;
         
         // Calcular nueva existencia (existencia anterior + cantidad total)
         const newExistencia = existingItem.existenciaAnterior + newTotalQuantity;
@@ -386,6 +387,7 @@ const ReceiptFormAdvanced = () => {
           ...existingItem,
           quantity: newTotalQuantity,
           subtotalUSD: newSubtotalUSD,
+          subtotalDOP: newSubtotalDOP,
           existenciaNueva: newExistencia
         };
         
@@ -403,8 +405,9 @@ const ReceiptFormAdvanced = () => {
         // Calcular precio en USD: (Precio de Compra DOP ÷ Tasa de cambio) + (Peso KG × Tasa de envío)
         const unitPriceUSD = (unitCostDOP / exchangeRate.rate) + (weightKg * (shippingRate?.internationalRate || 0));
         
-        // Calcular subtotal
+        // Calcular subtotales
         const subtotalUSD = unitPriceUSD * currentItem.quantity;
+        const subtotalDOP = unitCostDOP * currentItem.quantity;
         
         // Calcular existencia actual
         const existingStock = selectedMedicine.stock || 0;
@@ -438,6 +441,7 @@ const ReceiptFormAdvanced = () => {
           precioVentaDOP: unitPriceDOP,
           precioVentaUSD: unitPriceUSD,
           subtotalUSD: subtotalUSD,
+          subtotalDOP: subtotalDOP,
           
           // Stock
           existenciaAnterior: existingStock,
@@ -482,7 +486,7 @@ const ReceiptFormAdvanced = () => {
   };
 
   const calculateTotal = () => {
-    return receiptItems.reduce((total, item) => total + item.subtotalUSD, 0);
+    return receiptItems.reduce((total, item) => total + item.subtotalDOP, 0);
   };
 
   const handleSaveReceipt = async () => {
@@ -627,7 +631,7 @@ const ReceiptFormAdvanced = () => {
 
   return (
     <div style={{ 
-      height: '100vh', 
+      height: '100%', 
       display: 'flex', 
       flexDirection: 'column',
       backgroundColor: '#f5f5f5'
@@ -885,7 +889,7 @@ const ReceiptFormAdvanced = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-start', gap: '6px' }}>
             <button
               onClick={addItemToReceipt}
               style={{
@@ -946,25 +950,23 @@ const ReceiptFormAdvanced = () => {
             width: '100%', 
             borderCollapse: 'collapse',
             fontSize: '12px',
-            tableLayout: 'fixed',
-            minWidth: '100%'
+            tableLayout: 'fixed'
           }}>
             <thead>
               <tr style={{ backgroundColor: '#f8f9fa' }}>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', width: '150px' }}>Nombre Comercial</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', width: '120px' }}>Presentación</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '60px' }}>Peso (kg)</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '70px' }}>Cantidad</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '80px' }}>Precio Compra</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '90px' }}>Precio Venta USD</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '90px' }}>Subtotal USD</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '60px' }}>Acciones</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', width: '100px' }}>Nombre Comercial</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', width: '50px' }}>Presentación</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '30px' }}>Peso (kg)</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '30px' }}>Cantidad</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '60px' }}>Precio Compra DOP</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '60px' }}>Subtotal DOP</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '30px' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {receiptItems.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ 
+                  <td colSpan="7" style={{ 
                     padding: '40px', 
                     textAlign: 'center', 
                     color: '#6c757d',
@@ -976,19 +978,16 @@ const ReceiptFormAdvanced = () => {
               ) : (
                 receiptItems.map((item, index) => (
                   <tr key={item.id} style={{ borderBottom: '1px solid #dee2e6' }}>
-                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px' }} title={item.nombreComercial}>
+                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }} title={item.nombreComercial}>
                       <span style={{ marginRight: '4px' }}>▶</span>
                       {item.nombreComercial}
                     </td>
-                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }} title={item.presentacion}>{item.presentacion}</td>
+                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '50px' }} title={item.presentacion}>{item.presentacion}</td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'center' }}>{item.weightKg}</td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'center' }}>{item.quantity}</td>
-                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'right' }}>${item.precioCompra.toFixed(2)}</td>
-                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontWeight: 'bold', color: '#28a745', fontSize: '12px', textAlign: 'right' }}>
-                      ${item.precioVentaUSD.toFixed(2)}
-                    </td>
-                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontWeight: 'bold', color: '#2c3e50', fontSize: '12px', textAlign: 'right' }}>
-                      ${item.subtotalUSD.toFixed(2)}
+                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'right' }}>${item.precioCompra.toFixed(2)} DOP</td>
+                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontWeight: 'bold', color: '#007bff', fontSize: '12px', textAlign: 'right' }}>
+                      ${item.subtotalDOP.toFixed(2)} DOP
                     </td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center' }}>
                       <button
@@ -1025,7 +1024,7 @@ const ReceiptFormAdvanced = () => {
             fontSize: '14px',
             fontWeight: 'bold'
           }}>
-            <span>Total: ${calculateTotal().toFixed(2)} USD</span>
+            <span>Total: ${calculateTotal().toFixed(2)} DOP</span>
             <span>Items: {receiptItems.length}</span>
           </div>
         )}

@@ -316,3 +316,10 @@ Tu aplicación está desplegada con backend y frontend en proyectos separados en
 
 **¿Necesitas ayuda con algún paso específico?** Revisa los logs en Railway o consulta la documentación oficial: https://docs.railway.app
 
+
+
+
+
+
+
+

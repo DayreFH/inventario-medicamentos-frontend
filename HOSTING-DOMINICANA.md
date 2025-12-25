@@ -331,3 +331,10 @@ bash <(curl -Ss https://my-netdata.io/kickstart.sh)
 - ✅ Menor latencia para usuarios RD
 
 
+
+
+
+
+
+
+
