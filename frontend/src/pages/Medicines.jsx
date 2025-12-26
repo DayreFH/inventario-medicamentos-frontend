@@ -56,42 +56,41 @@ const Medicines = () => {
   return (
     <div style={{ 
       height: '100%', 
+      width: '100%',
+      maxWidth: '100%',
       display: 'flex', 
       flexDirection: 'column',
-      minHeight: '0'
+      backgroundColor: '#f5f5f5',
+      boxSizing: 'border-box',
+      overflow: 'hidden'
     }}>
       {/* Header */}
       <div style={{
+        backgroundColor: '#2c3e50',
+        color: 'white',
+        padding: '12px 16px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '24px',
-        paddingBottom: '16px',
-        borderBottom: '2px solid #e9ecef'
+        fontSize: '14px'
       }}>
-        <h1 style={{ 
-          margin: 0, 
-          color: '#2c3e50',
-          fontSize: '28px',
-          fontWeight: 'bold'
-        }}>
-          Gestión de Medicamentos
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: '18px',
+            fontWeight: '600'
+          }}>
+            Gestión de Medicamentos
+          </h1>
+          <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>
+            📊 {pagination.total} medicamentos registrados
+          </span>
+        </div>
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '16px'
+          gap: '8px'
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            color: '#6c757d',
-            fontSize: '14px'
-          }}>
-            <span>📊</span>
-            <span>{pagination.total} medicamentos registrados</span>
-          </div>
           
           {/* Controles de paginación */}
           {pagination.totalPages > 1 && (
@@ -144,14 +143,24 @@ const Medicines = () => {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Content */}
       <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
+        {/* Tabs */}
+        <div style={{
         display: 'flex',
-        marginBottom: '24px',
+        margin: '16px 16px 16px 16px',
         backgroundColor: '#f8f9fa',
         borderRadius: '8px',
         padding: '4px',
-        border: '1px solid #e9ecef'
+        border: '1px solid #e9ecef',
+        width: 'calc(100% - 32px)',
+        boxSizing: 'border-box'
       }}>
         {tabs.map((tab) => (
           <button
@@ -193,17 +202,18 @@ const Medicines = () => {
         ))}
       </div>
 
-      {/* Tab Content */}
-      <div style={{
-        flex: 1,
-        backgroundColor: '#ffffff',
-        borderRadius: '8px',
-        border: '1px solid #e9ecef',
-        overflow: 'hidden',
-        minHeight: '0',
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
+        {/* Tab Content */}
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '8px',
+          border: '1px solid #e9ecef',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          margin: '0 16px 16px 16px',
+          width: 'calc(100% - 32px)',
+          boxSizing: 'border-box'
+        }}>
         {activeTab === 'datos' && (
           <DatosTab medicines={medicines} onRefresh={() => loadMedicines(pagination.page)} loading={loading} />
         )}
@@ -213,6 +223,7 @@ const Medicines = () => {
         {activeTab === 'parametros' && (
           <ParametrosTab medicines={medicines} onRefresh={() => loadMedicines(pagination.page)} loading={loading} />
         )}
+        </div>
       </div>
     </div>
   );

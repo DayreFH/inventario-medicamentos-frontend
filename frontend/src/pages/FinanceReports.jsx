@@ -92,7 +92,20 @@ export default function FinanceReports() {
   };
 
   return (
-    <div>
+    <div style={{ 
+      height: '100%',
+      width: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: '#f5f5f5',
+      overflow: 'hidden'
+    }}>
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        padding: '16px'
+      }}>
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ color: '#2c3e50', margin: 0, fontSize: '28px', fontWeight: '600', marginBottom: '8px' }}>
           Finanzas · Reporte
@@ -231,6 +244,7 @@ export default function FinanceReports() {
             </tbody>
           </table>
         )}
+      </div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import PrivateRoute from './components/PrivateRoute';
 import Login from './pages/Login';
 import LoginDebug from './pages/LoginDebug';
 import Navigation from './components/Navigation';
+import TopBar from './components/TopBar';
 import Dashboard from './pages/Dashboard';
 import FinanceReports from './pages/FinanceReports';
 import Home from './pages/Home';
@@ -27,21 +28,30 @@ function ProtectedLayout({ children }) {
       display: 'grid', 
       gridTemplateColumns: '280px 1fr', 
       minHeight: '100vh',
-      backgroundColor: '#f5f5f5'
+      backgroundColor: '#f5f5f5',
+      margin: 0,
+      padding: 0
     }}>
       <Navigation />
-      <main style={{
-        padding: '24px',
-        backgroundColor: '#ffffff',
-        margin: '16px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        overflow: 'auto',
-        height: 'calc(100vh - 32px)',
-        maxHeight: 'calc(100vh - 32px)'
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        overflow: 'hidden',
+        width: '100%',
+        height: '100vh'
       }}>
-        {children}
-      </main>
+        <TopBar />
+        <main style={{
+          flex: 1,
+          padding: '0',
+          backgroundColor: '#f8fafc',
+          overflow: 'auto',
+          width: '100%',
+          height: '100%'
+        }}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

@@ -112,12 +112,12 @@ const DatosTab = ({ medicines, onRefresh, loading }) => {
 
   return (
     <div style={{ 
-      padding: '24px', 
+      padding: '24px 0', 
       flex: 1, 
       overflow: 'auto',
       minHeight: '0'
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', padding: '0 24px' }}>
         {/* Formulario */}
         <div>
           <h3 style={{ color: '#495057', marginBottom: '16px' }}>

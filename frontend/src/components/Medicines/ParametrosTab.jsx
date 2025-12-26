@@ -54,12 +54,12 @@ const ParametrosTab = ({ medicines, onRefresh, loading }) => {
 
   return (
     <div style={{ 
-      padding: '24px', 
+      padding: '24px 0', 
       flex: 1, 
       overflow: 'auto',
       minHeight: '0'
     }}>
-      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '600px', margin: '0 24px' }}>
         <h3 style={{ color: '#495057', marginBottom: '24px', textAlign: 'center' }}>
           Configuración de Parámetros
         </h3>

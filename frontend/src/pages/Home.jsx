@@ -1,6 +1,13 @@
 export default function Home() {
   return (
-    <div style={{ position: 'relative', minHeight: 'calc(100vh - 64px)', overflow: 'hidden', borderRadius: 12 }}>
+    <div style={{ 
+      height: '100%',
+      width: '100%',
+      margin: 0,
+      padding: 0,
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
       {/* Imagen a pantalla completa */}
       <img
         src="/welcome-hero.png"
