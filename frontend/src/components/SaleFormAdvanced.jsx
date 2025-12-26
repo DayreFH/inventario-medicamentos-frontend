@@ -512,7 +512,8 @@ const SaleFormAdvanced = () => {
         notes: `Venta con tasa DOP-USD: ${exchangeRate.rate}, Tasa envío internacional: ${shippingRate?.internationalRate || 0}, Tasa MN: ${exchangeRateMN}`,
         items: saleItems.map(item => ({
           medicineId: item.medicineId,
-          qty: item.quantity
+          qty: item.quantity,
+          precioVentaPropuestoUSD: item.precioVentaPropuestoUSD || 0
         }))
       };
 

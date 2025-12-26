@@ -9,13 +9,17 @@ const prisma = new PrismaClient();
 router.get('/metrics', authenticate, async (req, res) => {
   try {
     // Contar total de medicamentos
-    const totalMedicines = await prisma.medicines.count();
+    const totalMedicines = await prisma.Medicine.count();
 
     // Contar alertas activas (medicamentos con stock bajo o próximos a vencer)
-    const lowStockCount = await prisma.medicines.count({
+    const lowStockCount = await prisma.Medicine.count({
       where: {
         stock: {
-          lte: 10 // Stock mínimo por defecto
+          gt: 0,   // Stock mayor a 0
+          lte: 10  // Pero menor o igual a 10
+        },
+        receiptitem: {
+          some: {}  // Solo medicamentos con entradas
         }
       }
     });
@@ -24,11 +28,14 @@ router.get('/metrics', authenticate, async (req, res) => {
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
-    const expiringCount = await prisma.medicines.count({
+    const expiringCount = await prisma.Medicine.count({
       where: {
         fechaVencimiento: {
           lte: thirtyDaysFromNow,
           gte: new Date()
+        },
+        stock: {
+          gt: 0  // Solo medicamentos con stock disponible
         }
       }
     });
@@ -63,11 +70,14 @@ router.get('/notifications', authenticate, async (req, res) => {
     const sevenDaysFromNow = new Date();
     sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
-    const expiringMedicines = await prisma.medicines.findMany({
+    const expiringMedicines = await prisma.Medicine.findMany({
       where: {
         fechaVencimiento: {
           lte: sevenDaysFromNow,
           gte: new Date()
+        },
+        stock: {
+          gt: 0  // Solo medicamentos con stock disponible
         }
       },
       take: 5,
@@ -90,10 +100,14 @@ router.get('/notifications', authenticate, async (req, res) => {
     }
 
     // Medicamentos con stock bajo
-    const lowStockMedicines = await prisma.medicines.findMany({
+    const lowStockMedicines = await prisma.Medicine.findMany({
       where: {
         stock: {
-          lte: 10 // Stock mínimo por defecto
+          gt: 0,   // Stock mayor a 0 (no agotados)
+          lte: 10  // Pero menor o igual a 10 (stock bajo)
+        },
+        receiptitem: {
+          some: {}  // Solo medicamentos que tienen al menos una entrada
         }
       },
       take: 5,
@@ -107,13 +121,132 @@ router.get('/notifications', authenticate, async (req, res) => {
         id: `low-stock-${med.id}`,
         type: 'danger',
         icon: '📉',
-        title: `Stock bajo: ${med.nombre}`,
+        title: `Stock bajo: ${med.nombreComercial}`,
         message: `Solo quedan ${med.stock} unidades`,
-        time: 'Hace 1 hora',
+        time: 'Ahora',
         read: false,
-        link: `/medicines/${med.id}`
+        link: '/medicines'
       });
     });
+
+    // 🚫 Medicamentos vencidos (ya vencieron)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Inicio del día
+
+    const expiredMedicines = await prisma.Medicine.findMany({
+      where: {
+        fechaVencimiento: {
+          lt: today  // Menor que hoy (ya vencidos)
+        },
+        stock: {
+          gt: 0  // Solo los que aún tienen stock
+        }
+      },
+      orderBy: {
+        fechaVencimiento: 'asc'  // Los más antiguos primero
+      },
+      take: 5
+    });
+
+    if (expiredMedicines.length > 0) {
+      notifications.push({
+        id: `expired-medicines-${Date.now()}`,
+        type: 'danger',
+        icon: '🚫',
+        title: `${expiredMedicines.length} medicamentos vencidos`,
+        message: 'Retirar del inventario inmediatamente',
+        time: 'Ahora',
+        read: false,
+        link: '/medicines'
+      });
+    }
+
+    // 💰 Ventas del día
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    const todaySales = await prisma.sale.findMany({
+      where: {
+        date: {
+          gte: todayStart,
+          lt: todayEnd
+        }
+      },
+      include: {
+        saleitem: true
+      }
+    });
+
+    // Calcular total de ventas del día
+    let totalAmount = 0;
+    let totalItems = 0;
+
+    todaySales.forEach(sale => {
+      sale.saleitem.forEach(item => {
+        const precio = item.precio_propuesto_usd || 0;
+        totalAmount += Number(precio) * item.qty;
+        totalItems += item.qty;
+      });
+    });
+
+    const salesCount = todaySales.length;
+
+    if (salesCount > 0) {
+      notifications.push({
+        id: `daily-sales-${Date.now()}`,
+        type: 'success',
+        icon: '💰',
+        title: `Ventas de hoy: $${totalAmount.toFixed(2)} USD`,
+        message: `${salesCount} transacciones · ${totalItems} productos`,
+        time: 'Ahora',
+        read: false,
+        link: '/sales'
+      });
+    }
+
+    // ⏱️ Medicamentos sin movimiento (90+ días)
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    // Query optimizada: buscar medicamentos con stock que no tienen ventas recientes
+    const idleMedicines = await prisma.Medicine.findMany({
+      where: {
+        stock: { gt: 0 },  // Solo con stock disponible
+        receiptitem: { some: {} },  // Que tengan entradas
+        OR: [
+          {
+            // Medicamentos que nunca se han vendido
+            saleitem: { none: {} }
+          },
+          {
+            // O medicamentos cuya última venta fue hace más de 90 días
+            saleitem: {
+              every: {
+                sale: {
+                  date: { lt: ninetyDaysAgo }
+                }
+              }
+            }
+          }
+        ]
+      },
+      take: 10  // Limitar para no sobrecargar
+    });
+
+    if (idleMedicines.length > 0) {
+      notifications.push({
+        id: `idle-medicines-${Date.now()}`,
+        type: 'warning',
+        icon: '⏱️',
+        title: `${idleMedicines.length} medicamentos sin movimiento`,
+        message: 'Sin ventas en 90+ días',
+        time: 'Ahora',
+        read: false,
+        link: '/idle-medicines'
+      });
+    }
 
     // Limitar a 10 notificaciones
     const limitedNotifications = notifications.slice(0, 10);
@@ -148,10 +281,11 @@ router.get('/search', authenticate, async (req, res) => {
     const results = [];
 
     // Buscar medicamentos
-    const medicines = await prisma.medicines.findMany({
+    const medicines = await prisma.Medicine.findMany({
       where: {
         OR: [
-          { nombre: { contains: searchTerm, mode: 'insensitive' } },
+          { nombreComercial: { contains: searchTerm, mode: 'insensitive' } },
+          { nombreGenerico: { contains: searchTerm, mode: 'insensitive' } },
           { codigo: { contains: searchTerm, mode: 'insensitive' } }
         ]
       },
@@ -162,9 +296,9 @@ router.get('/search', authenticate, async (req, res) => {
       results.push({
         type: 'medicine',
         icon: '💊',
-        title: med.nombre,
+        title: med.nombreComercial,
         subtitle: `Código: ${med.codigo} | Stock: ${med.stock}`,
-        path: `/medicines/${med.id}`
+        path: '/medicines'
       });
     });
 

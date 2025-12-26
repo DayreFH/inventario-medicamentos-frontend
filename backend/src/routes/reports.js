@@ -5,7 +5,7 @@ const router = Router();
 router.get('/low-stock', async (req, res) => {
   try {
     // Workaround: obtener todos y filtrar por stock mínimo
-    const meds = await prisma.medicine.findMany({
+    const meds = await prisma.Medicine.findMany({
       include: {
         parametros: true
       }
@@ -105,7 +105,7 @@ router.get('/top-customers', async (req, res) => {
 
 router.get('/stock', async (_req, res) => {
   try {
-    const meds = await prisma.medicine.findMany({ 
+    const meds = await prisma.Medicine.findMany({ 
       orderBy: { nombreComercial: 'asc' },
       include: {
         parametros: true
@@ -176,7 +176,7 @@ router.get('/expiry-alerts', async (_req, res) => {
 router.get('/expiry-upcoming', async (_req, res) => {
   try {
     const today = new Date();
-    const params = await prisma.medicineParam.findMany({
+    const params = await prisma.MedicineParam.findMany({
       select: { medicineId: true, alertaCaducidad: true }
     });
     const medIdToThreshold = new Map(params.map(p => [p.medicineId, p.alertaCaducidad || 30]));
@@ -228,7 +228,7 @@ router.get('/supplier-suggestions', async (_req, res) => {
     console.log('🔍 Obteniendo sugerencias de proveedores...');
     
     // OPTIMIZACIÓN: Filtrar directamente en Prisma - SOLO precios activos
-    const medicines = await prisma.medicine.findMany({
+    const medicines = await prisma.Medicine.findMany({
       where: {
         precios: {
           some: { activo: true }  // Solo medicamentos con al menos 1 precio activo
@@ -338,7 +338,7 @@ router.get('/idle-medicines', async (_req, res) => {
     const startTime = Date.now();
     
     // OPTIMIZACIÓN: Obtener todos los medicamentos de una vez
-    const meds = await prisma.medicine.findMany({
+    const meds = await prisma.Medicine.findMany({
       include: {
         parametros: true
       }
@@ -558,19 +558,19 @@ router.get('/sales-items-by-period', async (req, res) => {
           lte: endDate
         }
       } : undefined,
-      include: { customer: true, items: { include: { medicine: true } } },
+      include: { customer: true, saleitem: { include: { medicines: true } } },
       orderBy: { date: 'asc' }
     });
     const rows = [];
     for (const s of sales) {
-      for (const it of s.items) {
+      for (const it of s.saleitem) {
         rows.push({
           id: it.id,
           date: s.date,
           customerName: s.customer?.name || '—',
           medicineId: it.medicineId,
-          medicineCode: it.medicine?.codigo,
-          medicineName: it.medicine?.nombreComercial,
+          medicineCode: it.medicines?.codigo,
+          medicineName: it.medicines?.nombreComercial,
           qty: it.qty,
           expirationDate: minExpiryByMed.get(it.medicineId) || null
         });
@@ -604,7 +604,7 @@ router.get('/purchases-items-by-period', async (req, res) => {
           lte: endDate
         }
       } : undefined,
-      include: { supplier: true, items: { include: { medicine: true } } },
+      include: { supplier: true, receiptitem: { include: { medicines: true } } },
       orderBy: { date: 'asc' }
     });
     
@@ -612,14 +612,14 @@ router.get('/purchases-items-by-period', async (req, res) => {
     
     const rows = [];
     for (const r of receipts) {
-      for (const it of r.items) {
-        const unit = typeof it.unitCost === 'object' ? parseFloat(it.unitCost.toString()) : Number(it.unitCost || 0);
+      for (const it of r.receiptitem) {
+        const unit = typeof it.unit_cost === 'object' ? parseFloat(it.unit_cost.toString()) : Number(it.unit_cost || 0);
         
         // Debug: mostrar info de fechas de caducidad
         if (it.expirationDate) {
-          console.log(`✅ Item ${it.id} - ${it.medicine?.nombreComercial}: Fecha caducidad = ${it.expirationDate}`);
+          console.log(`✅ Item ${it.id} - ${it.medicines?.nombreComercial}: Fecha caducidad = ${it.expirationDate}`);
         } else {
-          console.log(`❌ Item ${it.id} - ${it.medicine?.nombreComercial}: SIN fecha caducidad`);
+          console.log(`❌ Item ${it.id} - ${it.medicines?.nombreComercial}: SIN fecha caducidad`);
         }
         
         rows.push({
@@ -627,8 +627,8 @@ router.get('/purchases-items-by-period', async (req, res) => {
           date: r.date,
           supplierName: r.supplier?.name || '—',
           medicineId: it.medicineId,
-          medicineCode: it.medicine?.codigo,
-          medicineName: it.medicine?.nombreComercial,
+          medicineCode: it.medicines?.codigo,
+          medicineName: it.medicines?.nombreComercial,
           qty: it.qty,
           unitCostDOP: Number(unit.toFixed ? unit.toFixed(2) : unit),
           expirationDate: it.expirationDate || null,
