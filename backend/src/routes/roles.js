@@ -16,7 +16,7 @@ const roleSchema = z.object({
 // GET /roles - Listar todos los roles
 router.get('/', async (req, res) => {
   try {
-    const roles = await prisma.role.findMany({
+    const roles = await prisma.roles.findMany({
       orderBy: { created_at: 'desc' }
     });
 
@@ -31,7 +31,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const role = await prisma.role.findUnique({
+    const role = await prisma.roles.findUnique({
       where: { id: parseInt(id) },
       include: {
         users: {
@@ -61,7 +61,7 @@ router.post('/', async (req, res) => {
     const validatedData = roleSchema.parse(req.body);
 
     // Verificar si el nombre ya existe
-    const existingRole = await prisma.role.findFirst({
+    const existingRole = await prisma.roles.findFirst({
       where: { name: validatedData.name }
     });
 
@@ -69,7 +69,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Ya existe un rol con ese nombre' });
     }
 
-    const role = await prisma.role.create({
+    const role = await prisma.roles.create({
       data: {
         name: validatedData.name,
         description: validatedData.description || null,
@@ -94,7 +94,7 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const validatedData = roleSchema.parse(req.body);
 
-    const role = await prisma.role.update({
+    const role = await prisma.roles.update({
       where: { id: parseInt(id) },
       data: {
         name: validatedData.name,
@@ -130,7 +130,7 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    await prisma.role.delete({
+    await prisma.roles.delete({
       where: { id: parseInt(id) }
     });
 

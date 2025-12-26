@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/http';
-import { checkUtilityRate } from '../utils/checkUtilityRate';
+// import { checkUtilityRate } from '../utils/checkUtilityRate'; // FASE 1: Desactivado
 
 const SaleFormAdvanced = () => {
   const [exchangeRate, setExchangeRate] = useState({
@@ -16,7 +16,8 @@ const SaleFormAdvanced = () => {
     source: 'default'
   });
   const [exchangeRateMN, setExchangeRateMN] = useState(null);
-  const [utilityRate, setUtilityRate] = useState(null);
+  // FASE 1: Desactivado - Eliminación de % Utilidad
+  // const [utilityRate, setUtilityRate] = useState(null);
   const [medicines, setMedicines] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -33,15 +34,17 @@ const SaleFormAdvanced = () => {
     medicineId: '',
     customerId: '',
     quantity: 0,
-    saleDate: new Date().toISOString().slice(0, 10)
+    saleDate: new Date().toISOString().slice(0, 10),
+    precioVentaPropuestoUSD: 0
   });
 
   useEffect(() => {
     const initializeData = async () => {
       await loadInitialData();
       await checkExchangeRateMN();
-      const util = await checkUtilityRate();
-      if (util !== null && util !== undefined) setUtilityRate(util);
+      // FASE 1: Desactivado - Eliminación de % Utilidad
+      // const util = await checkUtilityRate();
+      // if (util !== null && util !== undefined) setUtilityRate(util);
     };
     
     initializeData();
@@ -60,19 +63,20 @@ const SaleFormAdvanced = () => {
           console.error('Error parsing localStorage:', e);
         }
       }
-      // Utility rate watcher
-      const savedUtil = localStorage.getItem('utilityRate');
-      if (savedUtil) {
-        try {
-          const data = JSON.parse(savedUtil);
-          const today = new Date().toDateString();
-          if (data.date === today && data.rate) {
-            setUtilityRate(parseFloat(data.rate));
-          }
-        } catch (e) {
-          console.error('Error parsing utilityRate from localStorage:', e);
-        }
-      }
+      // FASE 1: Desactivado - Eliminación de % Utilidad
+      // // Utility rate watcher
+      // const savedUtil = localStorage.getItem('utilityRate');
+      // if (savedUtil) {
+      //   try {
+      //     const data = JSON.parse(savedUtil);
+      //     const today = new Date().toDateString();
+      //     if (data.date === today && data.rate) {
+      //       setUtilityRate(parseFloat(data.rate));
+      //     }
+      //   } catch (e) {
+      //     console.error('Error parsing utilityRate from localStorage:', e);
+      //   }
+      // }
     }, 1000);
     
     // Recargar medicamentos cuando la página vuelve a estar visible (al regresar de otra pestaña)
@@ -99,13 +103,16 @@ const SaleFormAdvanced = () => {
         if (data.date === today) {
           setExchangeRateMN(data.rate);
         }
-      } else if (e.key === 'utilityRate') {
-        const data = JSON.parse(e.newValue);
-        const today = new Date().toDateString();
-        if (data.date === today) {
-          setUtilityRate(data.rate);
-        }
-      } else if (e.key === 'medicinesUpdated') {
+      } 
+      // FASE 1: Desactivado - Eliminación de % Utilidad
+      // else if (e.key === 'utilityRate') {
+      //   const data = JSON.parse(e.newValue);
+      //   const today = new Date().toDateString();
+      //   if (data.date === today) {
+      //     setUtilityRate(data.rate);
+      //   }
+      // }
+       else if (e.key === 'medicinesUpdated') {
         console.log('Stock actualizado en otra pestaña - Recargando medicamentos');
         loadMedicines();
       }
@@ -258,11 +265,48 @@ const SaleFormAdvanced = () => {
     }
   };
 
+  // Funciones para manejar historial de Precio Venta Propuesto USD
+  const getLastPrecioVentaPropuesto = (medicineId) => {
+    try {
+      const historial = localStorage.getItem('precioVentaPropuestoHistorial');
+      if (historial) {
+        const data = JSON.parse(historial);
+        return data[medicineId] || null;
+      }
+    } catch (error) {
+      console.error('Error leyendo historial:', error);
+    }
+    return null;
+  };
+
+  const saveLastPrecioVentaPropuesto = (medicineId, precio) => {
+    try {
+      const historial = localStorage.getItem('precioVentaPropuestoHistorial');
+      const data = historial ? JSON.parse(historial) : {};
+      data[medicineId] = {
+        precio: parseFloat(precio),
+        fecha: new Date().toISOString()
+      };
+      localStorage.setItem('precioVentaPropuestoHistorial', JSON.stringify(data));
+    } catch (error) {
+      console.error('Error guardando historial:', error);
+    }
+  };
+
   const handleMedicineSelect = (medicine) => {
     console.log('Seleccionando medicamento:', medicine);
     if (medicine && medicine.id) {
       setSelectedMedicine(medicine);
-      setCurrentItem({ ...currentItem, medicineId: medicine.id });
+      
+      // Recuperar último precio venta propuesto
+      const lastPrecio = getLastPrecioVentaPropuesto(medicine.id);
+      const precioVentaPropuestoUSD = lastPrecio ? lastPrecio.precio : 0;
+      
+      setCurrentItem({ 
+        ...currentItem, 
+        medicineId: medicine.id,
+        precioVentaPropuestoUSD
+      });
     }
   };
 
@@ -279,6 +323,12 @@ const SaleFormAdvanced = () => {
 
     if (currentItem.quantity > selectedMedicine.stock) {
       alert(`Stock insuficiente. Disponible: ${selectedMedicine.stock}`);
+      return;
+    }
+
+    // Validar Precio Venta Propuesto USD
+    if (!currentItem.precioVentaPropuestoUSD || currentItem.precioVentaPropuestoUSD <= 0) {
+      alert('Por favor ingrese un Precio Venta Propuesto USD válido (mayor a 0)');
       return;
     }
 
@@ -300,17 +350,17 @@ const SaleFormAdvanced = () => {
         return;
       }
       
-      // Obtener precio de compra y venta del medicamento (desde precios activos)
+      // Obtener precio de compra MAYOR del medicamento (desde precios activos)
       const precioCompraDOP = selectedMedicine.precios && selectedMedicine.precios.length > 0 
-        ? parseFloat(selectedMedicine.precios[0].precioCompraUnitario) 
+        ? Math.max(...selectedMedicine.precios.map(p => parseFloat(p.precioCompraUnitario)))
         : 0;
       const precioVentaDOP = selectedMedicine.precios && selectedMedicine.precios.length > 0 
         ? parseFloat(selectedMedicine.precios[0].precioVentaUnitario) 
         : 0;
       const pesoKg = selectedMedicine.pesoKg || 0;
       
-      // Precio de venta en USD: (Precio de Compra DOP ÷ Tasa de cambio) + (Peso KG × Tasa de envío)
-      const precioVentaUSD = (precioCompraDOP / exchangeRate.rate) + (pesoKg * (shippingRate?.internationalRate || 0));
+      // Costo unitario en USD: (Precio de Compra DOP ÷ Tasa de cambio) + (Peso KG × Tasa de envío)
+      const costoUnitarioUSD = (precioCompraDOP / exchangeRate.rate) + (pesoKg * (shippingRate?.internationalRate || 0));
       
       // Calcular Precio X KG Cuba según presentación
       const presentacionUpper = selectedMedicine.presentacion?.toUpperCase() || '';
@@ -320,14 +370,13 @@ const SaleFormAdvanced = () => {
       // Precio en MN = (PRECIO X KG CUBA + PRECIO VENTA USD) × TASA MN × (1 + % Utilidad/100)
       // Redondear valores intermedios para evitar discrepancias entre lo calculado y lo mostrado
       const precioPorKgCubaRounded = Math.round(precioPorKgCuba * 100) / 100;
-      const precioVentaUSDRounded = Math.round(precioVentaUSD * 100) / 100;
-      const precioBaseMN = (precioPorKgCubaRounded + precioVentaUSDRounded) * exchangeRateMN;
-      // Aplicar % de utilidad
-      const utilityMultiplier = utilityRate ? (1 + utilityRate / 100) : 1;
-      const precioVentaMN = precioBaseMN * utilityMultiplier;
+      const costoUnitarioUSDRounded = Math.round(costoUnitarioUSD * 100) / 100;
+      // Nueva fórmula: PRECIO VENTA MN = (COSTO/U USD + PRECIO VENTA PROPUESTO USD) × TASA MN
+      const precioVentaPropuestoUSD = currentItem.precioVentaPropuestoUSD || 0;
+      const precioVentaMN = (costoUnitarioUSDRounded + precioVentaPropuestoUSD) * exchangeRateMN;
       
       // Subtotal USD
-      const subtotalUSD = precioVentaUSDRounded * newTotalQuantity;
+      const subtotalUSD = costoUnitarioUSDRounded * newTotalQuantity;
       
       // Subtotal MN
       const subtotalMN = precioVentaMN * newTotalQuantity;
@@ -336,26 +385,30 @@ const SaleFormAdvanced = () => {
         ...existingItem,
         quantity: newTotalQuantity,
         precioCompraDOP,
-        precioVentaUSD: precioVentaUSDRounded,
+        costoUnitarioUSD: costoUnitarioUSDRounded,
         precioVentaMN,
         precioPorKgCuba: precioPorKgCubaRounded,
+        precioVentaPropuestoUSD,
         subtotalUSD,
         subtotalMN
       };
       
+      // Guardar historial de precio venta propuesto
+      saveLastPrecioVentaPropuesto(selectedMedicine.id, precioVentaPropuestoUSD);
+      
       setSaleItems(updatedItems);
     } else {
-      // Obtener precio de compra y venta del medicamento (desde precios activos)
+      // Obtener precio de compra MAYOR del medicamento (desde precios activos)
       const precioCompraDOP = selectedMedicine.precios && selectedMedicine.precios.length > 0 
-        ? parseFloat(selectedMedicine.precios[0].precioCompraUnitario) 
+        ? Math.max(...selectedMedicine.precios.map(p => parseFloat(p.precioCompraUnitario)))
         : 0;
       const precioVentaDOP = selectedMedicine.precios && selectedMedicine.precios.length > 0 
         ? parseFloat(selectedMedicine.precios[0].precioVentaUnitario) 
         : 0;
       const pesoKg = selectedMedicine.pesoKg || 0;
       
-      // Precio de venta en USD: (Precio de Compra DOP ÷ Tasa de cambio) + (Peso KG × Tasa de envío)
-      const precioVentaUSD = (precioCompraDOP / exchangeRate.rate) + (pesoKg * (shippingRate?.internationalRate || 0));
+      // Costo unitario en USD: (Precio de Compra DOP ÷ Tasa de cambio) + (Peso KG × Tasa de envío)
+      const costoUnitarioUSD = (precioCompraDOP / exchangeRate.rate) + (pesoKg * (shippingRate?.internationalRate || 0));
       
       // Calcular Precio X KG Cuba según presentación
       const presentacionUpper = selectedMedicine.presentacion?.toUpperCase() || '';
@@ -365,14 +418,13 @@ const SaleFormAdvanced = () => {
       // Precio en MN = (PRECIO X KG CUBA + PRECIO VENTA USD) × TASA MN × (1 + % Utilidad/100)
       // Redondear valores intermedios para evitar discrepancias entre lo calculado y lo mostrado
       const precioPorKgCubaRounded = Math.round(precioPorKgCuba * 100) / 100;
-      const precioVentaUSDRounded = Math.round(precioVentaUSD * 100) / 100;
-      const precioBaseMN = (precioPorKgCubaRounded + precioVentaUSDRounded) * exchangeRateMN;
-      // Aplicar % de utilidad
-      const utilityMultiplier = utilityRate ? (1 + utilityRate / 100) : 1;
-      const precioVentaMN = precioBaseMN * utilityMultiplier;
+      const costoUnitarioUSDRounded = Math.round(costoUnitarioUSD * 100) / 100;
+      // Nueva fórmula: PRECIO VENTA MN = (COSTO/U USD + PRECIO VENTA PROPUESTO USD) × TASA MN
+      const precioVentaPropuestoUSD = currentItem.precioVentaPropuestoUSD || 0;
+      const precioVentaMN = (costoUnitarioUSDRounded + precioVentaPropuestoUSD) * exchangeRateMN;
       
       // Subtotal USD
-      const subtotalUSD = precioVentaUSDRounded * currentItem.quantity;
+      const subtotalUSD = costoUnitarioUSDRounded * currentItem.quantity;
       
       // Subtotal MN
       const subtotalMN = precioVentaMN * currentItem.quantity;
@@ -394,15 +446,19 @@ const SaleFormAdvanced = () => {
         
         // Precios
         precioCompraDOP,
-        precioVentaUSD: precioVentaUSDRounded,
+        costoUnitarioUSD: costoUnitarioUSDRounded,
         precioVentaMN,
         precioPorKgCuba: precioPorKgCubaRounded,
+        precioVentaPropuestoUSD,
         subtotalUSD,
         subtotalMN,
         
         // Fecha
         saleDate: currentItem.saleDate
       };
+
+      // Guardar historial de precio venta propuesto
+      saveLastPrecioVentaPropuesto(selectedMedicine.id, precioVentaPropuestoUSD);
 
       setSaleItems([...saleItems, newItem]);
     }
@@ -412,7 +468,8 @@ const SaleFormAdvanced = () => {
       medicineId: '',
       customerId: '',
       quantity: 0,
-      saleDate: new Date().toISOString().slice(0, 10)
+      saleDate: new Date().toISOString().slice(0, 10),
+      precioVentaPropuestoUSD: 0
     });
     setSelectedMedicine(null);
     setSelectedCustomer(null);
@@ -539,7 +596,8 @@ const SaleFormAdvanced = () => {
           </span>
           <span>Fecha: {new Date().toLocaleDateString('es-DO')}</span>
           <span>T.C. MN: {exchangeRateMN ? `${exchangeRateMN} MN` : 'No configurado'}</span>
-          <span>% Utilidad: {utilityRate ? `${utilityRate}%` : 'No configurado'}</span>
+          {/* FASE 1: Desactivado - Eliminación de % Utilidad */}
+          {/* <span>% Utilidad: {utilityRate ? `${utilityRate}%` : 'No configurado'}</span> */}
         </div>
       </div>
 
@@ -724,6 +782,31 @@ const SaleFormAdvanced = () => {
                 }}
                 placeholder="Ingrese cantidad"
               />
+              
+              <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', marginTop: '6px', fontWeight: '500' }}>
+                Precio Venta Propuesto USD
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={currentItem.precioVentaPropuestoUSD}
+                onChange={(e) => setCurrentItem({ ...currentItem, precioVentaPropuestoUSD: parseFloat(e.target.value) || 0 })}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  border: currentItem.precioVentaPropuestoUSD > 0 ? '2px solid #28a745' : '1px solid #ccc',
+                  borderRadius: '4px',
+                  fontSize: '12px'
+                }}
+                placeholder="0.00"
+              />
+              {selectedMedicine && getLastPrecioVentaPropuesto(selectedMedicine.id) && (
+                <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
+                  Último usado: ${getLastPrecioVentaPropuesto(selectedMedicine.id).precio.toFixed(2)} 
+                  ({new Date(getLastPrecioVentaPropuesto(selectedMedicine.id).fecha).toLocaleDateString()})
+                </div>
+              )}
             </div>
 
             <div>
@@ -815,9 +898,10 @@ const SaleFormAdvanced = () => {
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', width: '150px' }}>Nombre Comercial</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', width: '120px' }}>Presentación</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '60px' }}>Cantidad</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '80px' }}>Precio Compra DOP</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '70px' }}>Precio Venta USD</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '100px' }}>Precio X KG Cuba</th>
+                {/* Precio Compra DOP oculto - se mantiene en item.precioCompraDOP para trazabilidad */}
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '70px' }}>Costo/U USD</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '90px' }}>P.V. Propuesto USD</th>
+                {/* Precio X KG Cuba oculto - cálculo se mantiene internamente */}
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '90px' }}>Subtotal USD</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '70px' }}>Precio Venta MN</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '90px' }}>Subtotal MN</th>
@@ -827,7 +911,7 @@ const SaleFormAdvanced = () => {
             <tbody>
               {saleItems.length === 0 ? (
                 <tr>
-                  <td colSpan="10" style={{ 
+                  <td colSpan="9" style={{ 
                     padding: '40px', 
                     textAlign: 'center', 
                     color: '#6c757d',
@@ -845,11 +929,12 @@ const SaleFormAdvanced = () => {
                     </td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }} title={item.presentacion}>{item.presentacion}</td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'center' }}>{item.quantity}</td>
-                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'right' }}>${item.precioCompraDOP.toFixed(2)}</td>
-                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'right' }}>${item.precioVentaUSD.toFixed(2)}</td>
-                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'right' }}>
-                      ${item.precioPorKgCuba.toFixed(2)}
+                    {/* Precio Compra DOP oculto - valor se mantiene en item.precioCompraDOP */}
+                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'right' }}>${item.costoUnitarioUSD.toFixed(2)}</td>
+                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontWeight: 'bold', color: '#007bff', fontSize: '12px', textAlign: 'right' }}>
+                      ${item.precioVentaPropuestoUSD.toFixed(2)}
                     </td>
+                    {/* Precio X KG Cuba oculto - valor se mantiene en item.precioPorKgCuba */}
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontWeight: 'bold', color: '#28a745', fontSize: '12px', textAlign: 'right' }}>
                       ${item.subtotalUSD.toFixed(2)}
                     </td>

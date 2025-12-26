@@ -1,14 +1,27 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { FEATURES } from '../config/featureFlags';
+import { hasAccessToRoute, getRoutesForPermission } from '../config/permissionsConfig';
 
 /**
  * Componente para proteger rutas privadas
  * Redirige a login si el usuario no está autenticado
+ * Verifica permisos si se especifica requiredPermission
+ * 
+ * Soporta dos modos:
+ * - GRANULAR_PERMISSIONS: false → Verificación simple (permiso exacto)
+ * - GRANULAR_PERMISSIONS: true → Verificación jerárquica (padre o hijo)
  */
-export default function PrivateRoute({ children }) {
-  const { user, loading } = useAuth();
+export default function PrivateRoute({ children, requiredPermission }) {
+  const { user, loading, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  console.log('🔒 PrivateRoute:', { loading, user: user ? user.name : 'NO AUTH' });
+  console.log('🔒 PrivateRoute:', { 
+    loading, 
+    user: user ? user.name : 'NO AUTH',
+    requiredPermission 
+  });
 
   // Mientras carga, mostrar un spinner o pantalla de carga
   if (loading) {
@@ -49,8 +62,210 @@ export default function PrivateRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  // Usuario autenticado, mostrar contenido
-  console.log('✅ PrivateRoute: Usuario autenticado, mostrando contenido');
+  // Si no se requiere permiso específico, permitir acceso
+  if (!requiredPermission) {
+    console.log('✅ PrivateRoute: Sin permiso requerido, mostrando contenido');
+    return children;
+  }
+
+  // Verificar si es administrador (acceso total)
+  const isAdmin = 
+    user?.roles === 'admin' ||
+    user?.roles?.name === 'Administrador' ||
+    user?.email === 'admin@admin.com' ||
+    user?.email === 'admin@inventario.com';
+  
+  if (isAdmin) {
+    console.log('✅ PrivateRoute: Usuario es admin, acceso total');
+    return children;
+  }
+
+  // Obtener permisos del usuario
+  const userPermissions = user?.roles?.permissions || [];
+  
+  // DEBUG: Mostrar estructura completa del usuario
+  console.log('🔍 DEBUG - Estructura del usuario:', {
+    userExists: !!user,
+    rolesExists: !!user?.roles,
+    rolesType: typeof user?.roles,
+    rolesContent: user?.roles,
+    permissionsRaw: userPermissions,
+    permissionsType: typeof userPermissions
+  });
+  
+  // Manejar permisos como string o array
+  let permissions = [];
+  if (typeof userPermissions === 'string') {
+    try {
+      permissions = JSON.parse(userPermissions);
+      console.log('✅ Permisos parseados desde string:', permissions);
+    } catch (e) {
+      console.error('❌ Error parseando permisos:', e);
+      permissions = [];
+    }
+  } else if (Array.isArray(userPermissions)) {
+    permissions = userPermissions;
+    console.log('✅ Permisos ya son array:', permissions);
+  } else {
+    console.warn('⚠️ Permisos en formato desconocido:', userPermissions);
+  }
+
+  console.log('🔍 PrivateRoute: Verificando permiso', {
+    requiredPermission,
+    userPermissions: permissions,
+    granularMode: FEATURES.GRANULAR_PERMISSIONS,
+    currentRoute: location.pathname
+  });
+
+  // Verificar si tiene el permiso requerido
+  let hasPermission = false;
+  
+  if (FEATURES.GRANULAR_PERMISSIONS) {
+    // MODO GRANULAR: Verificar usando lógica jerárquica
+    // Un usuario puede tener el permiso padre (ej: "dashboard") o el hijo específico (ej: "dashboard.alerts")
+    hasPermission = permissions.some(userPerm => {
+      // Si el usuario tiene el permiso exacto requerido
+      if (userPerm === requiredPermission) {
+        return true;
+      }
+      
+      // Si el usuario tiene el permiso padre del requerido
+      // Ej: usuario tiene "dashboard", ruta requiere "dashboard.alerts"
+      if (requiredPermission.startsWith(userPerm + '.')) {
+        return true;
+      }
+      
+      // Si el usuario tiene un permiso hijo y la ruta requiere el padre
+      // Ej: usuario tiene "dashboard.alerts", ruta requiere "dashboard"
+      if (userPerm.startsWith(requiredPermission + '.')) {
+        return true;
+      }
+      
+      return false;
+    });
+    
+    console.log('🔍 PrivateRoute (GRANULAR):', { hasPermission });
+  } else {
+    // MODO SIMPLE: Verificación directa
+    hasPermission = permissions.includes(requiredPermission);
+    console.log('🔍 PrivateRoute (SIMPLE):', { hasPermission });
+  }
+
+  if (!hasPermission) {
+    console.log('❌ PrivateRoute: Sin permiso, mostrando acceso denegado');
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '80vh',
+        padding: '40px'
+      }}>
+        <div style={{
+          textAlign: 'center',
+          maxWidth: '500px',
+          background: 'white',
+          padding: '48px',
+          borderRadius: '16px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{ fontSize: '64px', marginBottom: '24px' }}>🔒</div>
+          <h1 style={{ 
+            fontSize: '28px', 
+            color: '#2c3e50', 
+            marginBottom: '16px',
+            fontWeight: 'bold'
+          }}>
+            Acceso Denegado
+          </h1>
+          <p style={{ 
+            fontSize: '16px', 
+            color: '#6c757d', 
+            marginBottom: '24px',
+            lineHeight: '1.6'
+          }}>
+            No tienes permisos para acceder a esta página.
+          </p>
+          <div style={{
+            background: '#f8f9fa',
+            padding: '16px',
+            borderRadius: '8px',
+            marginBottom: '24px'
+          }}>
+            <p style={{ 
+              fontSize: '14px', 
+              color: '#495057',
+              margin: '0 0 8px 0'
+            }}>
+              <strong>Usuario:</strong> {user?.name}
+            </p>
+            <p style={{ 
+              fontSize: '14px', 
+              color: '#495057',
+              margin: '0 0 8px 0'
+            }}>
+              <strong>Rol:</strong> {user?.roles?.name || user?.roles || 'Sin rol'}
+            </p>
+            <p style={{ 
+              fontSize: '14px', 
+              color: '#495057',
+              margin: '0'
+            }}>
+              <strong>Permiso requerido:</strong> {requiredPermission}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <button
+              onClick={() => {
+                const startPanel = user?.roles?.startPanel || '/sales';
+                console.log('🏠 Redirigiendo a startPanel:', startPanel);
+                navigate(startPanel);
+              }}
+              style={{
+                padding: '12px 24px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+            >
+              🏠 Ir al inicio
+            </button>
+            <button
+              onClick={() => {
+                logout();
+                navigate('/login');
+              }}
+              style={{
+                padding: '12px 24px',
+                background: '#e74c3c',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+            >
+              🚪 Cerrar sesión
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Usuario autenticado y con permisos, mostrar contenido
+  console.log('✅ PrivateRoute: Usuario tiene permiso, mostrando contenido');
   return children;
 }
 

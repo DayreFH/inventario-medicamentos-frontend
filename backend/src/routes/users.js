@@ -10,7 +10,11 @@ const prisma = new PrismaClient();
 const userSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').optional(),
+  password: z.string()
+    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .regex(/[a-zA-Z]/, 'La contraseña debe incluir letras')
+    .regex(/[0-9]/, 'La contraseña debe incluir números')
+    .optional(),
   roleId: z.number().int().positive().optional(),
   isActive: z.boolean().optional()
 });
@@ -20,7 +24,7 @@ router.get('/', async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       include: {
-        role: {
+        roles: {
           select: {
             id: true,
             name: true,
@@ -48,7 +52,7 @@ router.get('/:id', async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: parseInt(id) },
       include: {
-        role: {
+        roles: {
           select: {
             id: true,
             name: true,
@@ -96,7 +100,7 @@ router.post('/', async (req, res) => {
         isActive: validatedData.isActive !== false
       },
       include: {
-        role: {
+        roles: {
           select: {
             id: true,
             name: true
@@ -120,32 +124,43 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('📝 Actualizando usuario ID:', id);
+    console.log('📦 Datos recibidos:', req.body);
+    
     const updateData = { ...req.body };
 
     // Si se envía contraseña, hashearla
     if (updateData.password) {
+      console.log('🔒 Hasheando contraseña...');
       updateData.password = await bcrypt.hash(updateData.password, 10);
     } else {
+      console.log('⚠️ Sin contraseña, eliminando del update');
       delete updateData.password;
     }
+
+    console.log('💾 Datos a actualizar:', updateData);
 
     const user = await prisma.user.update({
       where: { id: parseInt(id) },
       data: updateData,
       include: {
-        role: {
+        roles: {
           select: {
             id: true,
-            name: true
+            name: true,
+            permissions: true,
+            startPanel: true
           }
         }
       }
     });
 
+    console.log('✅ Usuario actualizado:', user);
+
     const { password, ...userWithoutPassword } = user;
     res.json({ data: userWithoutPassword, message: 'Usuario actualizado exitosamente' });
   } catch (error) {
-    console.error('Error updating user:', error);
+    console.error('❌ Error updating user:', error);
     res.status(500).json({ message: 'Error al actualizar usuario', error: error.message });
   }
 });

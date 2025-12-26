@@ -216,10 +216,10 @@ const Users = () => {
                     borderRadius: '20px',
                     fontSize: '12px',
                     fontWeight: '600',
-                    background: user.role?.name === 'Administrador' || user.role === 'admin' ? '#dbeafe' : '#f1f5f9',
-                    color: user.role?.name === 'Administrador' || user.role === 'admin' ? '#1d4ed8' : '#475569'
+                    background: user.roles?.name === 'Administrador' || user.roles === 'admin' ? '#dbeafe' : '#f1f5f9',
+                    color: user.roles?.name === 'Administrador' || user.roles === 'admin' ? '#1d4ed8' : '#475569'
                   }}>
-                    {user.role?.name || user.role || 'Sin rol'}
+                    {user.roles?.name || user.roles || 'Sin rol'}
                   </span>
                 </td>
                 <td style={{ padding: '16px', textAlign: 'center' }}>
@@ -297,5 +297,6 @@ const Users = () => {
 };
 
 export default Users;
+
 
 

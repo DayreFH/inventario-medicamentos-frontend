@@ -15,7 +15,10 @@ import Sales from './pages/Sales';
 import ExchangeRates from './pages/ExchangeRates';
 import ExchangeRatesMN from './pages/ExchangeRatesMN';
 import ShippingRates from './pages/ShippingRates';
-import UtilityRates from './pages/UtilityRates';
+// import UtilityRates from './pages/UtilityRates'; // ELIMINADO - archivo no existe
+import Users from './pages/Users';
+import Roles from './pages/Roles';
+import { ROUTE_PERMISSION_MAP } from './config/permissionsConfig';
 
 // Componente Layout para rutas protegidas
 function ProtectedLayout({ children }) {
@@ -62,7 +65,7 @@ export default function App() {
           } />
           
           <Route path="/home" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="dashboard.alerts">
               <ProtectedLayout>
                 <Home />
               </ProtectedLayout>
@@ -71,7 +74,7 @@ export default function App() {
           
           {/* PANEL DE DATOS */}
           <Route path="/dashboard" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="dashboard.alerts">
               <ProtectedLayout>
                 <Dashboard />
               </ProtectedLayout>
@@ -79,7 +82,7 @@ export default function App() {
           } />
           
           <Route path="/top-customers" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="dashboard.top-customers">
               <ProtectedLayout>
                 <Dashboard />
               </ProtectedLayout>
@@ -87,7 +90,7 @@ export default function App() {
           } />
           
           <Route path="/best-prices" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="dashboard.best-prices">
               <ProtectedLayout>
                 <Dashboard />
               </ProtectedLayout>
@@ -95,7 +98,7 @@ export default function App() {
           } />
           
           <Route path="/expiry-alerts" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="dashboard.expiry">
               <ProtectedLayout>
                 <Dashboard />
               </ProtectedLayout>
@@ -103,7 +106,7 @@ export default function App() {
           } />
           
           <Route path="/idle-medicines" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="dashboard.idle">
               <ProtectedLayout>
                 <Dashboard />
               </ProtectedLayout>
@@ -112,7 +115,7 @@ export default function App() {
           
           {/* ADMINISTRACIÓN */}
           <Route path="/admin/dop-usd" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="admin.dop-usd">
               <ProtectedLayout>
                 <ExchangeRates />
               </ProtectedLayout>
@@ -120,7 +123,7 @@ export default function App() {
           } />
           
           <Route path="/admin/usd-mn" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="admin.usd-mn">
               <ProtectedLayout>
                 <ExchangeRatesMN />
               </ProtectedLayout>
@@ -128,13 +131,14 @@ export default function App() {
           } />
           
           <Route path="/admin/shipping" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="admin.shipping">
               <ProtectedLayout>
                 <ShippingRates />
               </ProtectedLayout>
             </PrivateRoute>
           } />
           
+          {/* RUTA ELIMINADA - UtilityRates no existe
           <Route path="/admin/utility" element={
             <PrivateRoute>
               <ProtectedLayout>
@@ -142,10 +146,11 @@ export default function App() {
               </ProtectedLayout>
             </PrivateRoute>
           } />
+          */}
           
           {/* GESTIÓN DE DATOS */}
           <Route path="/medicines" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="medicines">
               <ProtectedLayout>
                 <Medicines />
               </ProtectedLayout>
@@ -153,7 +158,7 @@ export default function App() {
           } />
           
           <Route path="/customers" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="customers">
               <ProtectedLayout>
                 <Customers />
               </ProtectedLayout>
@@ -161,7 +166,7 @@ export default function App() {
           } />
           
           <Route path="/suppliers" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="suppliers">
               <ProtectedLayout>
                 <Suppliers />
               </ProtectedLayout>
@@ -170,7 +175,7 @@ export default function App() {
           
           {/* OPERACIONES */}
           <Route path="/receipts" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="receipts">
               <ProtectedLayout>
                 <Receipts />
               </ProtectedLayout>
@@ -178,7 +183,7 @@ export default function App() {
           } />
           
           <Route path="/sales" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="sales">
               <ProtectedLayout>
                 <Sales />
               </ProtectedLayout>
@@ -187,9 +192,26 @@ export default function App() {
           
           {/* FINANZAS */}
           <Route path="/finanzas/reportes" element={
-            <PrivateRoute>
+            <PrivateRoute requiredPermission="reports.financial">
               <ProtectedLayout>
                 <FinanceReports />
+              </ProtectedLayout>
+            </PrivateRoute>
+          } />
+
+          {/* GESTIÓN DE USUARIOS */}
+          <Route path="/users" element={
+            <PrivateRoute requiredPermission="users.list">
+              <ProtectedLayout>
+                <Users />
+              </ProtectedLayout>
+            </PrivateRoute>
+          } />
+          
+          <Route path="/roles" element={
+            <PrivateRoute requiredPermission="users.roles">
+              <ProtectedLayout>
+                <Roles />
               </ProtectedLayout>
             </PrivateRoute>
           } />

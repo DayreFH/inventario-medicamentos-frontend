@@ -242,7 +242,7 @@ router.get('/', async (req, res) => {
 
   const whereClause = {
     ...where,
-    ...(q ? { items: { some: { medicine: { nombreComercial: { contains: String(q) } } } } } : {})
+    ...(q ? { receiptitem: { some: { medicine: { nombreComercial: { contains: String(q) } } } } } : {})
   };
 
   try {
@@ -253,7 +253,7 @@ router.get('/', async (req, res) => {
         orderBy: { date: 'desc' },
         include: {
           supplier: true,
-          items: { include: { medicine: true } }
+          receiptitem: { include: { medicine: true } }
         },
         skip: skip,
         take: limit

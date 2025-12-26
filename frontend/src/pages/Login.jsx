@@ -1,23 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import PasswordInput from '../components/PasswordInput';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showRegister, setShowRegister] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
-  // Para registro
-  const [registerName, setRegisterName] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
-  
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login } = useAuth();
 
   // Detectar cambios de tamaño de pantalla
   useEffect(() => {
@@ -35,7 +29,10 @@ export default function Login() {
       const result = await login(email, password);
       
       if (result.success) {
-        navigate('/dashboard');
+        // Redirigir al panel inicial del rol del usuario
+        const startPanel = result.user?.role?.startPanel || '/dashboard';
+        console.log('🔄 Redirigiendo a:', startPanel);
+        navigate(startPanel);
       } else {
         setError(result.error || 'Error al iniciar sesión');
         console.error('Error en login:', result);
@@ -48,47 +45,6 @@ export default function Login() {
     }
   };
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setError(null);
-    
-    // Validaciones
-    if (!registerName || !registerEmail || !registerPassword) {
-      setError('Todos los campos son obligatorios');
-      return;
-    }
-    
-    if (registerPassword !== registerConfirmPassword) {
-      setError('Las contraseñas no coinciden');
-      return;
-    }
-    
-    if (registerPassword.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-    
-    setLoading(true);
-    
-    try {
-      const result = await register(registerEmail, registerPassword, registerName);
-      
-      if (result.success) {
-        navigate('/dashboard');
-      } else {
-        // Mostrar error más detallado
-        const errorMsg = result.error || 'Error al registrar usuario';
-        setError(errorMsg);
-        console.error('Error en registro:', result);
-      }
-    } catch (err) {
-      const errorMsg = err.response?.data?.message || err.message || 'Error al registrar usuario';
-      setError(errorMsg);
-      console.error('Error catch en registro:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div style={{
@@ -195,10 +151,10 @@ export default function Login() {
             color: '#2c3e50',
             marginBottom: '12px'
           }}>
-            {showRegister ? '👋 Crear Cuenta' : '🔐 Iniciar Sesión'}
+            🔐 Iniciar Sesión
           </h1>
           <p style={{ color: '#6c757d', fontSize: '16px' }}>
-            {showRegister ? 'Completa el formulario para registrarte' : 'Ingresa tus credenciales para continuar'}
+            Ingresa tus credenciales para continuar
           </p>
         </div>
 
@@ -220,10 +176,8 @@ export default function Login() {
           </div>
         )}
 
-        {/* Formularios */}
-        {!showRegister ? (
-          /* FORMULARIO DE LOGIN */
-          <form onSubmit={handleLogin}>
+        {/* FORMULARIO DE LOGIN */}
+        <form onSubmit={handleLogin}>
             <div style={{ marginBottom: '20px' }}>
               <label style={{
                 display: 'block',
@@ -254,35 +208,15 @@ export default function Login() {
               />
             </div>
 
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-                color: '#495057',
-                fontSize: '14px'
-              }}>
-                Contraseña
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  transition: 'border-color 0.2s',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#dee2e6'}
-              />
-            </div>
+            <PasswordInput
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required={true}
+              label="Contraseña"
+              placeholder="••••••••"
+              showStrength={false}
+              style={{ marginBottom: '24px' }}
+            />
 
             <button
               type="submit"
@@ -305,195 +239,7 @@ export default function Login() {
             >
               {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </button>
-
-            <div style={{ textAlign: 'center', marginTop: '20px' }}>
-              <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                ¿No tienes cuenta?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRegister(true);
-                    setError(null);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#667eea',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Regístrate aquí
-                </button>
-              </p>
-            </div>
           </form>
-        ) : (
-          /* FORMULARIO DE REGISTRO */
-          <form onSubmit={handleRegister}>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-                color: '#495057',
-                fontSize: '14px'
-              }}>
-                Nombre completo
-              </label>
-              <input
-                type="text"
-                value={registerName}
-                onChange={(e) => setRegisterName(e.target.value)}
-                required
-                placeholder="Juan Pérez"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#dee2e6'}
-              />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-                color: '#495057',
-                fontSize: '14px'
-              }}>
-                Email
-              </label>
-              <input
-                type="email"
-                value={registerEmail}
-                onChange={(e) => setRegisterEmail(e.target.value)}
-                required
-                placeholder="tu@email.com"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#dee2e6'}
-              />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-                color: '#495057',
-                fontSize: '14px'
-              }}>
-                Contraseña
-              </label>
-              <input
-                type="password"
-                value={registerPassword}
-                onChange={(e) => setRegisterPassword(e.target.value)}
-                required
-                placeholder="Mínimo 6 caracteres"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#dee2e6'}
-              />
-            </div>
-
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{
-                display: 'block',
-                marginBottom: '8px',
-                fontWeight: '500',
-                color: '#495057',
-                fontSize: '14px'
-              }}>
-                Confirmar contraseña
-              </label>
-              <input
-                type="password"
-                value={registerConfirmPassword}
-                onChange={(e) => setRegisterConfirmPassword(e.target.value)}
-                required
-                placeholder="Repite la contraseña"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  border: '1px solid #dee2e6',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#667eea'}
-                onBlur={(e) => e.target.style.borderColor = '#dee2e6'}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '14px',
-                background: loading ? '#a0a0a0' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'transform 0.2s',
-                marginBottom: '16px'
-              }}
-              onMouseEnter={(e) => !loading && (e.target.style.transform = 'translateY(-2px)')}
-              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
-            >
-              {loading ? 'Registrando...' : 'Crear Cuenta'}
-            </button>
-
-            <div style={{ textAlign: 'center', marginTop: '20px' }}>
-              <p style={{ color: '#6c757d', fontSize: '14px' }}>
-                ¿Ya tienes cuenta?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRegister(false);
-                    setError(null);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#667eea',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Inicia sesión
-                </button>
-              </p>
-            </div>
-          </form>
-        )}
         </div>
     </div>
   );

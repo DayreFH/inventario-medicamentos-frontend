@@ -41,7 +41,7 @@ router.get('/top-customers', async (req, res) => {
     
     // Primero verificar si hay ventas
     const totalSales = await prisma.sale.count();
-    const totalSaleItems = await prisma.saleItem.count();
+    const totalSaleItems = await prisma.saleitem.count();
     console.log(`📊 Total de ventas: ${totalSales}`);
     console.log(`📊 Total de items de venta: ${totalSaleItems}`);
     
@@ -53,18 +53,18 @@ router.get('/top-customers', async (req, res) => {
     // Usar Prisma de forma nativa en lugar de SQL raw para mejor compatibilidad
     const customersWithSales = await prisma.customer.findMany({
       where: {
-        sales: {
+        sale: {
           some: {
-            items: {
+            saleitem: {
               some: {}
             }
           }
         }
       },
       include: {
-        sales: {
+        sale: {
           include: {
-            items: true
+            saleitem: true
           }
         }
       }
@@ -74,8 +74,8 @@ router.get('/top-customers', async (req, res) => {
     
     // Calcular totales manualmente
     const customerTotals = customersWithSales.map(customer => {
-      const totalQty = customer.sales.reduce((sum, sale) => {
-        return sum + sale.items.reduce((itemSum, item) => itemSum + item.qty, 0);
+      const totalQty = customer.sale.reduce((sum, sale) => {
+        return sum + sale.saleitem.reduce((itemSum, item) => itemSum + item.qty, 0);
       }, 0);
       
       return {
@@ -134,9 +134,9 @@ router.get('/expiry-alerts', async (_req, res) => {
   try {
     const today = new Date();
     // Tomar mínima fecha de vencimiento por medicamento desde ReceiptItem
-    const items = await prisma.receiptItem.findMany({
+    const items = await prisma.receiptitem.findMany({
       where: { expirationDate: { not: null } },
-      include: { medicine: true, receipt: true }
+      include: { medicines: true, receipt: true }
     });
 
     const map = new Map(); // medicineId -> { minExpiry, medicine }
@@ -146,7 +146,7 @@ router.get('/expiry-alerts', async (_req, res) => {
       if (!exp) continue;
       const cur = map.get(key);
       if (!cur || exp < cur.minExpiry) {
-        map.set(key, { minExpiry: exp, medicine: it.medicine });
+        map.set(key, { minExpiry: exp, medicine: it.medicines });
       }
     }
 
@@ -181,9 +181,9 @@ router.get('/expiry-upcoming', async (_req, res) => {
     });
     const medIdToThreshold = new Map(params.map(p => [p.medicineId, p.alertaCaducidad || 30]));
 
-    const items = await prisma.receiptItem.findMany({
+    const items = await prisma.receiptitem.findMany({
       where: { expirationDate: { not: null } },
-      include: { medicine: true }
+      include: { medicines: true }
     });
 
     const map = new Map();
@@ -192,7 +192,7 @@ router.get('/expiry-upcoming', async (_req, res) => {
       if (!exp) continue;
       const cur = map.get(it.medicineId);
       if (!cur || exp < cur.minExpiry) {
-        map.set(it.medicineId, { minExpiry: exp, medicine: it.medicine });
+        map.set(it.medicineId, { minExpiry: exp, medicine: it.medicines });
       }
     }
 
@@ -347,7 +347,7 @@ router.get('/idle-medicines', async (_req, res) => {
     console.log(`📊 Total medicamentos encontrados: ${meds.length}`);
 
     // OPTIMIZACIÓN: Obtener TODAS las últimas ventas de una vez (1 consulta)
-    const allSaleItems = await prisma.saleItem.findMany({
+    const allSaleItems = await prisma.saleitem.findMany({
       include: {
         sale: {
           select: { date: true }
@@ -361,7 +361,7 @@ router.get('/idle-medicines', async (_req, res) => {
     });
 
     // OPTIMIZACIÓN: Obtener TODAS las últimas entradas de una vez (1 consulta)
-    const allReceiptItems = await prisma.receiptItem.findMany({
+    const allReceiptItems = await prisma.receiptitem.findMany({
       include: {
         receipt: {
           select: { date: true }
@@ -539,7 +539,7 @@ router.get('/sales-items-by-period', async (req, res) => {
     const startDate = start ? new Date(`${start}T00:00:00`) : undefined;
     const endDate = end ? new Date(`${end}T23:59:59.999`) : undefined;
     // Prefetch min expiration per medicine from ReceiptItem
-    const receiptItems = await prisma.receiptItem.findMany({
+    const receiptItems = await prisma.receiptitem.findMany({
       where: { expirationDate: { not: null } },
       select: { medicineId: true, expirationDate: true }
     });
@@ -658,7 +658,7 @@ router.get('/sales-by-medicine', async (req, res) => {
     }
 
     // Filtrar por ítems de venta del medicamento, con join a Sale para fecha
-    const items = await prisma.saleItem.findMany({
+    const items = await prisma.saleitem.findMany({
       where: { medicineId: medId },
       include: { sale: true, medicine: true }
     });
@@ -700,9 +700,9 @@ router.get('/purchases-by-medicine', async (req, res) => {
       return res.status(400).json({ error: 'medicineId es requerido' });
     }
 
-    const items = await prisma.receiptItem.findMany({
+    const items = await prisma.receiptitem.findMany({
       where: { medicineId: medId },
-      include: { receipt: true, medicine: true }
+      include: { receipt: true, medicines: true }
     });
 
     const filtered = items.filter(it => {

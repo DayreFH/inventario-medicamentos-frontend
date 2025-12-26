@@ -28,12 +28,8 @@ export async function authenticate(req, res, next) {
     // Verificar que el usuario existe y está activo
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { 
-        id: true, 
-        email: true, 
-        name: true, 
-        role: true,
-        isActive: true 
+      include: {
+        roles: true
       }
     });
     
@@ -44,8 +40,13 @@ export async function authenticate(req, res, next) {
       });
     }
     
-    // Agregar usuario al request
-    req.user = user;
+    // Agregar usuario al request con roles incluido
+    // Mantener tanto 'role' como 'roles' para compatibilidad
+    req.user = {
+      ...user,
+      role: user.roles,   // Para código legacy
+      roles: user.roles   // Para código nuevo
+    };
     next();
   } catch (error) {
     console.error('Error en middleware de autenticación:', error);
@@ -95,17 +96,17 @@ export async function optionalAuth(req, res, next) {
       if (payload) {
         const user = await prisma.user.findUnique({
           where: { id: payload.userId },
-          select: { 
-            id: true, 
-            email: true, 
-            name: true, 
-            role: true,
-            isActive: true 
+          include: {
+            roles: true
           }
         });
         
         if (user && user.isActive) {
-          req.user = user;
+          req.user = {
+            ...user,
+            role: user.roles,   // Para código legacy
+            roles: user.roles   // Para código nuevo
+          };
         }
       }
     }
