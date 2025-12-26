@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../api/http';
+import ProfileModalSimple from './ProfileModalSimple';
 
 /**
  * TopBar - Barra superior con búsqueda, notificaciones, métricas y usuario
@@ -24,6 +25,7 @@ const TopBar = () => {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [metrics, setMetrics] = useState({
     totalMedicines: 0,
@@ -146,33 +148,11 @@ const TopBar = () => {
 
     try {
       const response = await api.get(`/topbar/search?q=${encodeURIComponent(query)}`);
-      setSearchResults(response.data.data || []);
+      console.log('🔍 Respuesta del backend:', response.data);
+      setSearchResults(response.data.results || []);
     } catch (error) {
-      console.error('Error searching:', error);
-      // Datos de ejemplo si falla
-      setSearchResults([
-        {
-          type: 'medicine',
-          icon: '💊',
-          title: 'Aspirina 500mg',
-          subtitle: 'Código: MED001 | Stock: 150',
-          path: '/medicines/1'
-        },
-        {
-          type: 'customer',
-          icon: '👤',
-          title: 'Juan Pérez',
-          subtitle: 'Email: juan@example.com',
-          path: '/customers/1'
-        },
-        {
-          type: 'sale',
-          icon: '📄',
-          title: 'Venta #1234',
-          subtitle: 'Cliente: María García | $250.00',
-          path: '/sales/1234'
-        }
-      ]);
+      console.error('❌ Error en búsqueda:', error);
+      setSearchResults([]);
     } finally {
       setLoadingSearch(false);
     }
@@ -180,6 +160,8 @@ const TopBar = () => {
 
   // Navegar a resultado de búsqueda
   const handleResultClick = (path) => {
+    console.log('🔍 Click en resultado, navegando a:', path);
+    console.log('🔍 Resultado completo:', path);
     navigate(path);
     setShowSearchResults(false);
     setSearchQuery('');
@@ -629,6 +611,32 @@ const TopBar = () => {
             {/* Opciones del menú */}
             <div style={{ padding: '8px' }}>
               <button
+                onClick={() => {
+                  setShowProfileModal(true);
+                  setShowUserMenu(false);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: 'none',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  fontSize: '14px',
+                  color: '#2c3e50',
+                  transition: 'background 0.2s',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={(e) => e.target.style.background = '#f8f9fa'}
+                onMouseLeave={(e) => e.target.style.background = 'none'}
+              >
+                <span style={{ fontSize: '18px' }}>🔑</span>
+                <span>Cambiar Contraseña</span>
+              </button>
+              <button
                 onClick={handleLogout}
                 style={{
                   width: '100%',
@@ -656,6 +664,12 @@ const TopBar = () => {
           </div>
         )}
       </div>
+
+      {/* ProfileModalSimple - TEMPORAL hasta resolver el problema */}
+      <ProfileModalSimple
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+      />
     </div>
   );
 };

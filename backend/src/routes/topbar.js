@@ -269,11 +269,12 @@ router.get('/notifications', authenticate, async (req, res) => {
 router.get('/search', authenticate, async (req, res) => {
   try {
     const { q } = req.query;
+    console.log('🔍 Búsqueda recibida:', q);
 
     if (!q || q.trim().length < 2) {
       return res.json({
         success: true,
-        data: []
+        results: []
       });
     }
 
@@ -281,12 +282,13 @@ router.get('/search', authenticate, async (req, res) => {
     const results = [];
 
     // Buscar medicamentos
+    console.log('🔍 Buscando medicamentos...');
     const medicines = await prisma.Medicine.findMany({
       where: {
         OR: [
-          { nombreComercial: { contains: searchTerm, mode: 'insensitive' } },
-          { nombreGenerico: { contains: searchTerm, mode: 'insensitive' } },
-          { codigo: { contains: searchTerm, mode: 'insensitive' } }
+          { nombreComercial: { contains: searchTerm } },
+          { nombreGenerico: { contains: searchTerm } },
+          { codigo: { contains: searchTerm } }
         ]
       },
       take: 5
@@ -303,11 +305,12 @@ router.get('/search', authenticate, async (req, res) => {
     });
 
     // Buscar clientes
+    console.log('🔍 Buscando clientes...');
     const customers = await prisma.customer.findMany({
       where: {
         OR: [
-          { nombre: { contains: searchTerm, mode: 'insensitive' } },
-          { email: { contains: searchTerm, mode: 'insensitive' } }
+          { name: { contains: searchTerm } },
+          { email: { contains: searchTerm } }
         ]
       },
       take: 5
@@ -317,13 +320,14 @@ router.get('/search', authenticate, async (req, res) => {
       results.push({
         type: 'customer',
         icon: '👤',
-        title: customer.nombre,
+        title: customer.name,
         subtitle: `Email: ${customer.email || 'N/A'}`,
-        path: `/customers/${customer.id}`
+        path: '/customers'
       });
     });
 
     // Buscar ventas (por número de factura)
+    console.log('🔍 Buscando ventas...');
     if (!isNaN(searchTerm)) {
       const sales = await prisma.sale.findMany({
         where: {
@@ -340,18 +344,20 @@ router.get('/search', authenticate, async (req, res) => {
           type: 'sale',
           icon: '📄',
           title: `Venta #${sale.id}`,
-          subtitle: `Cliente: ${sale.customer?.nombre || 'N/A'} | $${sale.total}`,
-          path: `/sales/${sale.id}`
+          subtitle: `Cliente: ${sale.customer?.name || 'N/A'} | $${sale.total}`,
+          path: '/sales'
         });
       });
     }
 
+    console.log(`✅ Búsqueda completada: ${results.length} resultados encontrados`);
     res.json({
       success: true,
-      data: results.slice(0, 10) // Limitar a 10 resultados
+      results: results.slice(0, 10) // Limitar a 10 resultados
     });
   } catch (error) {
-    console.error('Error searching:', error);
+    console.error('❌ Error en búsqueda:', error);
+    console.error('❌ Stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Error en la búsqueda',

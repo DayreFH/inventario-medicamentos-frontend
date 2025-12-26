@@ -181,6 +181,113 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// PUT /users/profile - Editar perfil propio
+router.put('/profile', async (req, res) => {
+  try {
+    const userId = req.user?.id; // Del token JWT (middleware authenticate)
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const { name, email, currentPassword, newPassword, roleId } = req.body;
+
+    // Buscar usuario actual
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: {
+        roles: {
+          select: {
+            id: true,
+            name: true,
+            permissions: true,
+            startPanel: true
+          }
+        }
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Si quiere cambiar contraseña
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Contraseña actual requerida' });
+      }
+      
+      // Verificar contraseña actual
+      const validPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!validPassword) {
+        return res.status(400).json({ error: 'Contraseña actual incorrecta' });
+      }
+
+      // Validar nueva contraseña
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: 'Nueva contraseña debe tener mínimo 8 caracteres' });
+      }
+      if (!/[a-zA-Z]/.test(newPassword)) {
+        return res.status(400).json({ error: 'Nueva contraseña debe incluir letras' });
+      }
+      if (!/[0-9]/.test(newPassword)) {
+        return res.status(400).json({ error: 'Nueva contraseña debe incluir números' });
+      }
+    }
+
+    // Si quiere cambiar email, verificar que no exista
+    if (email && email !== user.email) {
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+      if (existingUser) {
+        return res.status(400).json({ error: 'El email ya está en uso' });
+      }
+    }
+
+    // Preparar datos a actualizar
+    const updateData = {
+      name: name || user.name,
+      email: email || user.email,
+    };
+
+    // Solo permitir cambio de rol si es admin
+    if (roleId && user.roles?.name === 'Administrador') {
+      updateData.roleId = roleId;
+    }
+
+    // Si hay nueva contraseña, hashearla
+    if (newPassword) {
+      updateData.password = await bcrypt.hash(newPassword, 10);
+    }
+
+    // Actualizar usuario
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      include: {
+        roles: {
+          select: {
+            id: true,
+            name: true,
+            permissions: true,
+            startPanel: true
+          }
+        }
+      }
+    });
+
+    // Retornar usuario actualizado (sin contraseña)
+    const { password, ...userWithoutPassword } = updatedUser;
+    res.json({ 
+      success: true, 
+      user: userWithoutPassword,
+      message: 'Perfil actualizado exitosamente'
+    });
+  } catch (error) {
+    console.error('Error actualizando perfil:', error);
+    res.status(500).json({ error: 'Error actualizando perfil' });
+  }
+});
+
 export default router;
 
 

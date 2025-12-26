@@ -135,6 +135,13 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   };
 
+  // Actualizar usuario (para cambios de perfil)
+  const updateUser = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+    console.log('✅ Usuario actualizado en AuthContext:', updatedUser.name);
+  };
+
   // Cambiar contraseña
   const changePassword = async (currentPassword, newPassword) => {
     try {
@@ -182,6 +189,7 @@ export const AuthProvider = ({ children }) => {
     register,
     login,
     logout,
+    updateUser,
     changePassword,
     refreshToken,
     isAuthenticated,
