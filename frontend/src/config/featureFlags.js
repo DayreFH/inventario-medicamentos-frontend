@@ -25,7 +25,20 @@ export const FEATURES = {
    * true = Mostrar logs detallados en consola sobre verificación de permisos
    * false = Sin logs (producción)
    */
-  DEBUG_PERMISSIONS: true
+  DEBUG_PERMISSIONS: true,
+  
+  /**
+   * HIERARCHICAL_ROLE_UI: UI jerárquica para modal de roles
+   * 
+   * false = UI simple (lista plana de checkboxes)
+   * true = UI jerárquica (módulos expandibles con sub-módulos)
+   * 
+   * IMPORTANTE: Cambiar a true solo después de:
+   * 1. Completar implementación de RoleModalHierarchical
+   * 2. Probar exhaustivamente la creación/edición de roles
+   * 3. Verificar que los permisos se guarden correctamente
+   */
+  HIERARCHICAL_ROLE_UI: true
 };
 
 /**

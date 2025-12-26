@@ -217,9 +217,46 @@ export default function PrivateRoute({ children, requiredPermission }) {
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
             <button
               onClick={() => {
-                const startPanel = user?.roles?.startPanel || '/sales';
-                console.log('🏠 Redirigiendo a startPanel:', startPanel);
-                navigate(startPanel);
+                // Obtener permisos del usuario
+                const userPermissions = user?.roles?.permissions || [];
+                const permissions = typeof userPermissions === 'string' 
+                  ? JSON.parse(userPermissions) 
+                  : userPermissions;
+
+                console.log('🔍 Permisos del usuario:', permissions);
+
+                // Intentar encontrar la primera ruta accesible
+                let targetRoute = null;
+
+                // Primero intentar el startPanel configurado
+                const startPanel = user?.roles?.startPanel || '/dashboard';
+                if (FEATURES.GRANULAR_PERMISSIONS) {
+                  if (hasAccessToRoute(startPanel, permissions)) {
+                    targetRoute = startPanel;
+                  }
+                } else {
+                  targetRoute = startPanel;
+                }
+
+                // Si el startPanel no es accesible, buscar la primera ruta que sí lo sea
+                if (!targetRoute && FEATURES.GRANULAR_PERMISSIONS) {
+                  for (const permission of permissions) {
+                    const routes = getRoutesForPermission(permission);
+                    if (routes.length > 0) {
+                      targetRoute = routes[0];
+                      console.log(`✅ Ruta accesible encontrada: ${targetRoute} (permiso: ${permission})`);
+                      break;
+                    }
+                  }
+                }
+
+                // Fallback final
+                if (!targetRoute) {
+                  targetRoute = '/dashboard';
+                }
+
+                console.log('🏠 Redirigiendo a:', targetRoute);
+                navigate(targetRoute);
               }}
               style={{
                 padding: '12px 24px',

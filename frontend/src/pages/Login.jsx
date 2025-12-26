@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import PasswordInput from '../components/PasswordInput';
+import { FEATURES } from '../config/featureFlags';
+import { hasAccessToRoute, getRoutesForPermission } from '../config/permissionsConfig';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -29,10 +31,48 @@ export default function Login() {
       const result = await login(email, password);
       
       if (result.success) {
-        // Redirigir al panel inicial del rol del usuario
-        const startPanel = result.user?.role?.startPanel || '/dashboard';
-        console.log('🔄 Redirigiendo a:', startPanel);
-        navigate(startPanel);
+        // Obtener permisos del usuario
+        const userPermissions = result.user?.role?.permissions || result.user?.roles?.permissions || [];
+        const permissions = typeof userPermissions === 'string' 
+          ? JSON.parse(userPermissions) 
+          : userPermissions;
+
+        console.log('🔍 Permisos del usuario en login:', permissions);
+
+        // Intentar encontrar la primera ruta accesible
+        let targetRoute = null;
+
+        // Primero intentar el startPanel configurado
+        const startPanel = result.user?.role?.startPanel || result.user?.roles?.startPanel || '/dashboard';
+        
+        if (FEATURES.GRANULAR_PERMISSIONS) {
+          if (hasAccessToRoute(startPanel, permissions)) {
+            targetRoute = startPanel;
+            console.log('✅ StartPanel es accesible:', targetRoute);
+          } else {
+            console.log('⚠️ StartPanel no es accesible:', startPanel);
+            // Buscar la primera ruta que sí sea accesible
+            for (const permission of permissions) {
+              const routes = getRoutesForPermission(permission);
+              if (routes.length > 0) {
+                targetRoute = routes[0];
+                console.log(`✅ Ruta accesible encontrada: ${targetRoute} (permiso: ${permission})`);
+                break;
+              }
+            }
+          }
+        } else {
+          targetRoute = startPanel;
+        }
+
+        // Fallback final
+        if (!targetRoute) {
+          targetRoute = '/dashboard';
+          console.log('⚠️ Usando fallback:', targetRoute);
+        }
+
+        console.log('🔄 Redirigiendo a:', targetRoute);
+        navigate(targetRoute);
       } else {
         setError(result.error || 'Error al iniciar sesión');
         console.error('Error en login:', result);

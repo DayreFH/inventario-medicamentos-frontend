@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '../api/http';
 import RoleModal from '../components/RoleModal';
+import RoleModalHierarchical from '../components/RoleModalHierarchical';
+import { FEATURES } from '../config/featureFlags';
 
 const Roles = () => {
   const [roles, setRoles] = useState([]);
@@ -248,11 +250,19 @@ const Roles = () => {
       )}
 
       {showModal && (
-        <RoleModal
-          role={editingRole}
-          onSave={handleSaveRole}
-          onClose={() => setShowModal(false)}
-        />
+        FEATURES.HIERARCHICAL_ROLE_UI ? (
+          <RoleModalHierarchical
+            role={editingRole}
+            onSave={handleSaveRole}
+            onClose={() => setShowModal(false)}
+          />
+        ) : (
+          <RoleModal
+            role={editingRole}
+            onSave={handleSaveRole}
+            onClose={() => setShowModal(false)}
+          />
+        )
       )}
     </div>
   );

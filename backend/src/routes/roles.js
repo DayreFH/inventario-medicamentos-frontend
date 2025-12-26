@@ -10,7 +10,10 @@ const roleSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   description: z.string().optional(),
   startPanel: z.string().optional(),
-  permissions: z.string().optional() // JSON string de permisos
+  permissions: z.union([
+    z.array(z.string()), // Acepta array de strings (nuevo formato)
+    z.string()           // Acepta string JSON (formato viejo para compatibilidad)
+  ]).optional()
 });
 
 // GET /roles - Listar todos los roles
@@ -69,12 +72,18 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Ya existe un rol con ese nombre' });
     }
 
+    // Convertir permissions a JSON string si es un array
+    const permissionsJson = Array.isArray(validatedData.permissions)
+      ? JSON.stringify(validatedData.permissions)
+      : validatedData.permissions || '[]';
+
     const role = await prisma.roles.create({
       data: {
         name: validatedData.name,
         description: validatedData.description || null,
         startPanel: validatedData.startPanel || '/dashboard',
-        permissions: validatedData.permissions || '[]'
+        permissions: permissionsJson,
+        updated_at: new Date()
       }
     });
 
@@ -94,13 +103,19 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const validatedData = roleSchema.parse(req.body);
 
+    // Convertir permissions a JSON string si es un array
+    const permissionsJson = Array.isArray(validatedData.permissions)
+      ? JSON.stringify(validatedData.permissions)
+      : validatedData.permissions;
+
     const role = await prisma.roles.update({
       where: { id: parseInt(id) },
       data: {
         name: validatedData.name,
         description: validatedData.description,
         startPanel: validatedData.startPanel,
-        permissions: validatedData.permissions
+        permissions: permissionsJson,
+        updated_at: new Date()
       }
     });
 
