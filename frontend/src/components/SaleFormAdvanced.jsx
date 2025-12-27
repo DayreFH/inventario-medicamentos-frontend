@@ -20,6 +20,8 @@ const SaleFormAdvanced = () => {
   // const [utilityRate, setUtilityRate] = useState(null);
   const [medicines, setMedicines] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('efectivo');
   const [loading, setLoading] = useState(false);
   
   // Estados para los combobox
@@ -42,6 +44,7 @@ const SaleFormAdvanced = () => {
     const initializeData = async () => {
       await loadInitialData();
       await checkExchangeRateMN();
+      await loadPaymentMethods();
       // FASE 1: Desactivado - Eliminación de % Utilidad
       // const util = await checkUtilityRate();
       // if (util !== null && util !== undefined) setUtilityRate(util);
@@ -265,6 +268,22 @@ const SaleFormAdvanced = () => {
     }
   };
 
+  const loadPaymentMethods = async () => {
+    try {
+      const { data } = await api.get('/payment-methods');
+      setPaymentMethods(data);
+      // Establecer "efectivo" como método por defecto si existe
+      const efectivo = data.find(m => m.name === 'efectivo');
+      if (efectivo) {
+        setSelectedPaymentMethod(efectivo.name);
+      } else if (data.length > 0) {
+        setSelectedPaymentMethod(data[0].name);
+      }
+    } catch (error) {
+      console.error('Error cargando métodos de pago:', error);
+    }
+  };
+
   // Funciones para manejar historial de Precio Venta Propuesto USD
   const getLastPrecioVentaPropuesto = (medicineId) => {
     try {
@@ -376,7 +395,7 @@ const SaleFormAdvanced = () => {
       const precioVentaMN = (costoUnitarioUSDRounded + precioVentaPropuestoUSD) * exchangeRateMN;
       
       // Subtotal USD
-      const subtotalUSD = costoUnitarioUSDRounded * newTotalQuantity;
+      const subtotalUSD = precioVentaPropuestoUSD * newTotalQuantity;
       
       // Subtotal MN
       const subtotalMN = precioVentaMN * newTotalQuantity;
@@ -424,7 +443,7 @@ const SaleFormAdvanced = () => {
       const precioVentaMN = (costoUnitarioUSDRounded + precioVentaPropuestoUSD) * exchangeRateMN;
       
       // Subtotal USD
-      const subtotalUSD = costoUnitarioUSDRounded * currentItem.quantity;
+      const subtotalUSD = precioVentaPropuestoUSD * currentItem.quantity;
       
       // Subtotal MN
       const subtotalMN = precioVentaMN * currentItem.quantity;
@@ -505,10 +524,16 @@ const SaleFormAdvanced = () => {
       return;
     }
 
+    if (!selectedPaymentMethod) {
+      alert('Debe seleccionar una forma de pago');
+      return;
+    }
+
     try {
       const saleData = {
         customerId: saleItems[0].customerId,
         date: saleItems[0].saleDate,
+        paymentMethod: selectedPaymentMethod,
         notes: `Venta con tasa DOP-USD: ${exchangeRate.rate}, Tasa envío internacional: ${shippingRate?.internationalRate || 0}, Tasa MN: ${exchangeRateMN}`,
         items: saleItems.map(item => ({
           medicineId: item.medicineId,
@@ -525,6 +550,7 @@ const SaleFormAdvanced = () => {
       setSaleItems([]);
       setSelectedMedicine(null);
       setSelectedCustomer(null);
+      setSelectedPaymentMethod('efectivo'); // Resetear a efectivo
     } catch (error) {
       console.error('Error guardando salida:', error);
       alert(`Error guardando la salida: ${error.message}`);
@@ -830,36 +856,66 @@ const SaleFormAdvanced = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
-            <button
-              onClick={addItemToSale}
-              style={{
-                padding: '6px 12px',
-                backgroundColor: '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: '3px',
-                fontSize: '11px',
-                cursor: 'pointer'
-              }}
-            >
-              ➕ Agregar
-            </button>
-            <button
-              onClick={handleSaveSale}
-              disabled={saleItems.length === 0}
-              style={{
-                padding: '6px 12px',
-                backgroundColor: saleItems.length === 0 ? '#6c757d' : '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '3px',
-                fontSize: '11px',
-                cursor: saleItems.length === 0 ? 'not-allowed' : 'pointer'
-              }}
-            >
-              💾 Guardar
-            </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+            {/* Selector de forma de pago */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ fontSize: '12px', color: '#495057', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                💳 Forma de Pago:
+              </label>
+              <select
+                value={selectedPaymentMethod}
+                onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                style={{
+                  padding: '6px 12px',
+                  border: '2px solid #007bff',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: '500',
+                  backgroundColor: 'white',
+                  cursor: 'pointer',
+                  minWidth: '180px'
+                }}
+              >
+                {paymentMethods.map(method => (
+                  <option key={method.id} value={method.name}>
+                    {method.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Botones */}
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                onClick={addItemToSale}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '3px',
+                  fontSize: '11px',
+                  cursor: 'pointer'
+                }}
+              >
+                ➕ Agregar
+              </button>
+              <button
+                onClick={handleSaveSale}
+                disabled={saleItems.length === 0}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor: saleItems.length === 0 ? '#6c757d' : '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '3px',
+                  fontSize: '11px',
+                  cursor: saleItems.length === 0 ? 'not-allowed' : 'pointer'
+                }}
+              >
+                💾 Guardar
+              </button>
+            </div>
           </div>
         </div>
       </div>

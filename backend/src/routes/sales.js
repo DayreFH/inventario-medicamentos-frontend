@@ -28,10 +28,10 @@ function monthRange(ym) {
 /**
  * Crear salida (venta)
  * POST /api/sales
- * body: { customerId, date:"YYYY-MM-DD", notes?, items:[{medicineId, qty}] }
+ * body: { customerId, date:"YYYY-MM-DD", paymentMethod?, notes?, items:[{medicineId, qty}] }
  */
 router.post('/', async (req, res) => {
-  const { customerId, date, notes, items } = req.body;
+  const { customerId, date, paymentMethod, notes, items } = req.body;
   try {
     const result = await prisma.$transaction(async (tx) => {
       // Validar stock y obtener costos
@@ -57,7 +57,12 @@ router.post('/', async (req, res) => {
       }
 
       const sale = await tx.sale.create({
-        data: { customerId, date: new Date(`${date}T00:00:00`), notes: notes ?? null }
+        data: { 
+          customerId, 
+          date: new Date(`${date}T00:00:00`), 
+          paymentMethod: paymentMethod ?? 'efectivo',
+          notes: notes ?? null 
+        }
       });
 
       for (let i = 0; i < medicinesData.length; i++) {
@@ -88,11 +93,11 @@ router.post('/', async (req, res) => {
 /**
  * EDITAR salida (reemplaza items y ajusta stock por delta)
  * PUT /api/sales/:id
- * body: { customerId, date, notes, items:[{medicineId, qty}] }
+ * body: { customerId, date, paymentMethod, notes, items:[{medicineId, qty}] }
  */
 router.put('/:id', async (req, res) => {
   const id = Number(req.params.id);
-  const { customerId, date, notes, items } = req.body;
+  const { customerId, date, paymentMethod, notes, items } = req.body;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -167,6 +172,7 @@ router.put('/:id', async (req, res) => {
         data: {
           ...(customerId ? { customerId } : {}),
           ...(date ? { date: new Date(`${date}T00:00:00`) } : {}),
+          ...(paymentMethod ? { paymentMethod } : {}),
           notes: notes ?? null
         }
       });

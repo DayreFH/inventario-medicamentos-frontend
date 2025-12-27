@@ -114,6 +114,21 @@ export const PERMISSIONS_HIERARCHY = {
     children: []
   },
   
+  'invoicing': {
+    id: 'invoicing',
+    name: 'Facturación',
+    icon: '🧾',
+    description: 'Gestión de facturas y documentos fiscales',
+    children: [
+      { 
+        id: 'invoicing.manage', 
+        name: 'Gestión de Facturas', 
+        route: '/operaciones/facturacion',
+        description: 'Crear, editar y gestionar facturas'
+      }
+    ]
+  },
+  
   'reports': {
     id: 'reports',
     name: 'Informes / Reportes',
@@ -235,6 +250,7 @@ export const ROUTE_PERMISSION_MAP = {
   
   '/receipts': 'receipts',
   '/sales': 'sales',
+  '/operaciones/facturacion': 'invoicing.manage',
   
   '/finanzas/reportes': 'reports.financial',
   '/finanzas/rentabilidad': 'reports.profitability',

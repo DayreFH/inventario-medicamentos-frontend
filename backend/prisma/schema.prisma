@@ -137,12 +137,14 @@ model ShippingRate {
 }
 
 model customer {
-  id         Int      @id @default(autoincrement())
-  name       String
-  phone      String?
-  created_at DateTime @default(now())
-  email      String?
-  sale       sale[]
+  id            Int      @id @default(autoincrement())
+  name          String
+  phone         String?
+  created_at    DateTime @default(now())
+  email         String?
+  rnc           String?  // RNC del cliente (para facturación)
+  fiscalAddress String?  @db.Text // Dirección fiscal
+  sale          sale[]
 }
 
 model receipt {
@@ -187,13 +189,15 @@ model roles {
 }
 
 model sale {
-  id         Int        @id @default(autoincrement())
-  customerId Int
-  date       DateTime
-  notes      String?
-  created_at DateTime   @default(now())
-  customer   customer   @relation(fields: [customerId], references: [id], map: "Sale_customerId_fkey")
-  saleitem   saleitem[]
+  id            Int        @id @default(autoincrement())
+  customerId    Int
+  date          DateTime
+  notes         String?
+  created_at    DateTime   @default(now())
+  paymentMethod String?    @default("efectivo") // Forma de pago
+  customer      customer   @relation(fields: [customerId], references: [id], map: "Sale_customerId_fkey")
+  saleitem      saleitem[]
+  invoice       invoice?   // Relación uno a uno con factura (opcional)
 
   @@index([customerId, date], map: "Sale_customerId_date_idx")
   @@index([date], map: "Sale_date_idx")
@@ -256,3 +260,60 @@ enum Presentacion {
   ampollas
   otros
 }
+
+// ============================================================
+// MODELOS PARA FACTURACIÓN
+// ============================================================
+
+model CompanySettings {
+  id              Int      @id @default(autoincrement())
+  companyName     String   @default("Mi Empresa")
+  rnc             String?
+  address         String?  @db.Text
+  phone           String?
+  email           String?
+  logo            String?  @db.Text // URL o base64 del logo (opcional)
+  invoicePrefix   String   @default("FAC") // Prefijo de factura
+  invoiceSequence Int      @default(1) // Último número usado
+  taxRate         Decimal  @default(0) @db.Decimal(5, 2) // % de ITBIS (opcional)
+  footerText      String?  @db.Text
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@map("company_settings")
+}
+
+model PaymentMethod {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // efectivo, tarjeta, transferencia, credito
+  displayName String   // "Efectivo", "Tarjeta", etc
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  created_at  DateTime @default(now())
+
+  @@map("payment_methods")
+}
+
+model invoice {
+  id             Int      @id @default(autoincrement())
+  saleId         Int      @unique // Una venta solo puede tener una factura
+  ncf            String   // Número de Comprobante Fiscal
+  subtotal       Decimal  @db.Decimal(10, 2)
+  itbis          Decimal  @default(0) @db.Decimal(5, 2) // % de ITBIS
+  itbisAmount    Decimal  @default(0) @db.Decimal(10, 2)
+  discount       Decimal  @default(0) @db.Decimal(5, 2) // % de descuento
+  discountAmount Decimal  @default(0) @db.Decimal(10, 2)
+  total          Decimal  @db.Decimal(10, 2)
+  notes          String?  @db.Text
+  status         String   @default("emitida") // emitida, anulada
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relaciones
+  sale           sale     @relation(fields: [saleId], references: [id])
+  
+  @@index([saleId])
+  @@index([ncf])
+  @@map("invoices")
+}
+

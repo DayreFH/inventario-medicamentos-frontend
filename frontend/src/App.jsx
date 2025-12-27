@@ -21,6 +21,7 @@ import Users from './pages/Users';
 import Roles from './pages/Roles';
 import Reports from './pages/Reports';
 import ProfitabilityAnalysis from './pages/ProfitabilityAnalysis';
+import InvoiceManager from './pages/InvoiceManager';
 import { ROUTE_PERMISSION_MAP } from './config/permissionsConfig';
 
 // Componente Layout para rutas protegidas
@@ -206,6 +207,14 @@ export default function App() {
             <PrivateRoute requiredPermission="sales">
               <ProtectedLayout>
                 <Sales />
+              </ProtectedLayout>
+            </PrivateRoute>
+          } />
+          
+          <Route path="/operaciones/facturacion" element={
+            <PrivateRoute requiredPermission="invoicing.manage">
+              <ProtectedLayout>
+                <InvoiceManager />
               </ProtectedLayout>
             </PrivateRoute>
           } />

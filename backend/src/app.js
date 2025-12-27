@@ -8,6 +8,7 @@ import suppliers from './routes/suppliers.js';
 import customers from './routes/customers.js';
 import receipts from './routes/receipts.js';
 import sales from './routes/sales.js';
+import invoices from './routes/invoices.js';
 import reports from './routes/reports.js';
 import exchangeRates from './routes/exchangeRates.js';
 import exchangeRatesMN from './routes/exchangeRatesMN.js';
@@ -18,6 +19,8 @@ import roles from './routes/roles.js';
 import topbar from './routes/topbar.js';
 import profitability from './routes/profitability.js';
 import dashboard from './routes/dashboard.js';
+import companySettings from './routes/companySettings.js';
+import paymentMethods from './routes/paymentMethods.js';
 import schedulerService from './services/scheduler.js';
 
 const app = express();
@@ -86,6 +89,7 @@ app.use('/api/suppliers', authenticate, suppliers);
 app.use('/api/customers', authenticate, customers);
 app.use('/api/receipts', authenticate, receipts);
 app.use('/api/sales', authenticate, sales);
+app.use('/api/invoices', authenticate, invoices);
 app.use('/api/reports', authenticate, reports);
 app.use('/api/exchange-rates', authenticate, exchangeRates);
 app.use('/api/exchange-rates-mn', authenticate, exchangeRatesMN);
@@ -96,6 +100,8 @@ app.use('/api/roles', authenticate, roles);
 app.use('/api/topbar', authenticate, topbar);
 app.use('/api/profitability', authenticate, profitability);
 app.use('/api/dashboard', authenticate, dashboard);
+app.use('/api/company-settings', authenticate, companySettings);
+app.use('/api/payment-methods', authenticate, paymentMethods);
 
 // Iniciar el scheduler de tasas de cambio
 schedulerService.start();
