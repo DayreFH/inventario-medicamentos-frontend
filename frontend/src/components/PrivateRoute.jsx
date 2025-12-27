@@ -231,7 +231,7 @@ export default function PrivateRoute({ children, requiredPermission }) {
                 // Primero intentar el startPanel configurado
                 const startPanel = user?.roles?.startPanel || '/dashboard';
                 if (FEATURES.GRANULAR_PERMISSIONS) {
-                  if (hasAccessToRoute(startPanel, permissions)) {
+                  if (hasAccessToRoute(permissions, startPanel)) {
                     targetRoute = startPanel;
                   }
                 } else {

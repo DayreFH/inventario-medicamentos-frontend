@@ -106,7 +106,17 @@ router.post('/login', async (req, res) => {
     
     // Buscar usuario
     const user = await prisma.user.findUnique({
-      where: { email: validated.email }
+      where: { email: validated.email },
+      include: {
+        roles: {
+          select: {
+            id: true,
+            name: true,
+            permissions: true,
+            startPanel: true
+          }
+        }
+      }
     });
     
     if (!user) {
@@ -138,7 +148,7 @@ router.post('/login', async (req, res) => {
     const token = generateToken({ 
       userId: user.id, 
       email: user.email,
-      role: user.role 
+      roles: user.roles 
     });
     
     res.json({
@@ -147,7 +157,7 @@ router.post('/login', async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role
+        roles: user.roles
       },
       token
     });

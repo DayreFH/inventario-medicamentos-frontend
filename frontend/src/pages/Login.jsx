@@ -46,7 +46,7 @@ export default function Login() {
         const startPanel = result.user?.role?.startPanel || result.user?.roles?.startPanel || '/dashboard';
         
         if (FEATURES.GRANULAR_PERMISSIONS) {
-          if (hasAccessToRoute(startPanel, permissions)) {
+          if (hasAccessToRoute(permissions, startPanel)) {
             targetRoute = startPanel;
             console.log('✅ StartPanel es accesible:', targetRoute);
           } else {

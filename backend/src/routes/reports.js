@@ -14,7 +14,7 @@ router.get('/low-stock', async (req, res) => {
     // Filtrar medicamentos con stock bajo (usando parámetros o valor por defecto)
     const lows = meds
       .map(med => {
-        const minStock = med.parametros?.[0]?.stockMinimo || 10; // Valor por defecto 10
+        const minStock = med.parametros?.stockMinimo || 10; // Valor por defecto 10
         return {
           ...med,
           min_stock: minStock,
@@ -121,7 +121,7 @@ router.get('/stock', async (_req, res) => {
       unit: m.concentracion,
       presentation: m.presentacion,
       stock: m.stock, 
-      min_stock: m.parametros?.[0]?.stockMinimo || 10
+      min_stock: m.parametros?.stockMinimo || 10
     })));
   } catch (error) {
     console.error('Error en /reports/stock:', error);
@@ -411,7 +411,7 @@ router.get('/idle-medicines', async (_req, res) => {
       const daysIdle = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
 
       // Obtener el umbral de días sin movimiento configurado (por defecto 90)
-      const thresholdDays = med.parametros?.[0]?.tiempoSinMovimiento || 90;
+      const thresholdDays = med.parametros?.tiempoSinMovimiento || 90;
 
       // Debug info para cada medicamento
       debugInfo.push({

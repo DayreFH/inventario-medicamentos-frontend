@@ -30,21 +30,32 @@ const ParametrosTab = ({ medicines, onRefresh, loading }) => {
     if (!selectedMedicine) return;
     try {
       const { data } = await api.get(`/medicines/${selectedMedicine}`);
-      if (data.parametros && data.parametros.length > 0) {
+      console.log('📊 Datos del medicamento:', data);
+      console.log('📊 Parámetros recibidos:', data.parametros);
+      
+      if (data.parametros) {
+        // parametros es un objeto, no un array (relación 1-a-1)
         setParametros({
-          stockMinimo: data.parametros[0].stockMinimo,
-          alertaCaducidad: data.parametros[0].alertaCaducidad,
-          tiempoSinMovimiento: data.parametros[0].tiempoSinMovimiento
+          stockMinimo: data.parametros.stockMinimo || 10,
+          alertaCaducidad: data.parametros.alertaCaducidad || 30,
+          tiempoSinMovimiento: data.parametros.tiempoSinMovimiento || 90
+        });
+        console.log('✅ Parámetros cargados:', {
+          stockMinimo: data.parametros.stockMinimo,
+          alertaCaducidad: data.parametros.alertaCaducidad,
+          tiempoSinMovimiento: data.parametros.tiempoSinMovimiento
         });
       } else {
+        // Si no hay parámetros, usar valores por defecto
         setParametros({
           stockMinimo: 10,
           alertaCaducidad: 30,
           tiempoSinMovimiento: 90
         });
+        console.log('⚠️ No hay parámetros, usando valores por defecto');
       }
     } catch (error) {
-      console.error('Error cargando parámetros:', error);
+      console.error('❌ Error cargando parámetros:', error);
     }
   };
 
