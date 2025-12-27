@@ -33,11 +33,20 @@ const TopBar = () => {
     unreadNotifications: 0
   });
   const [loadingSearch, setLoadingSearch] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Refs para cerrar dropdowns al hacer click fuera
   const searchRef = useRef(null);
   const notificationsRef = useRef(null);
   const userMenuRef = useRef(null);
+
+  // Actualizar fecha/hora cada segundo
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Cargar notificaciones y métricas al montar
   useEffect(() => {
@@ -183,6 +192,18 @@ const TopBar = () => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  // Formatear fecha y hora: "27 Dic 14:35"
+  const formatDateTime = () => {
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 
+                    'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const day = currentTime.getDate();
+    const month = months[currentTime.getMonth()];
+    const hours = String(currentTime.getHours()).padStart(2, '0');
+    const minutes = String(currentTime.getMinutes()).padStart(2, '0');
+    
+    return `${day} ${month} ${hours}:${minutes}`;
   };
 
   return (
@@ -529,6 +550,21 @@ const TopBar = () => {
             )}
           </div>
         )}
+      </div>
+
+      {/* Fecha y Hora */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        fontSize: '13px',
+        color: '#ecf0f1',
+        padding: '0 16px',
+        borderLeft: '1px solid rgba(255,255,255,0.15)',
+        borderRight: '1px solid rgba(255,255,255,0.15)',
+        whiteSpace: 'nowrap',
+        fontWeight: '500'
+      }}>
+        📅 {formatDateTime()}
       </div>
 
       {/* Usuario */}

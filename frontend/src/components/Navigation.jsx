@@ -10,7 +10,7 @@ const Navigation = () => {
       title: 'PANEL DE DATOS',
       icon: '📊',
       children: [
-        { title: 'Alertas de Stock', path: '/dashboard' },
+        { title: 'Alertas de Stock', path: '/low-stock' },
         { title: 'Principales Clientes', path: '/top-customers' },
         { title: 'Mejores Precios-Proveedores', path: '/best-prices' },
         { title: 'Caducidad', path: '/expiry-alerts' },
@@ -48,7 +48,15 @@ const Navigation = () => {
       title: 'FINANZAS',
       icon: '💰',
       children: [
-        { title: 'Reporte', path: '/finanzas/reportes' }
+        { title: 'Reporte Financiero', path: '/finanzas/reportes' },
+        { title: 'Análisis de Rentabilidad', path: '/finanzas/rentabilidad' }
+      ]
+    },
+    {
+      title: 'INFORMES / REPORTES',
+      icon: '📊',
+      children: [
+        { title: 'Reportes', path: '/reports' }
       ]
     },
     {

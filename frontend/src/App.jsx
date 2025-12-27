@@ -19,6 +19,8 @@ import ShippingRates from './pages/ShippingRates';
 // import UtilityRates from './pages/UtilityRates'; // ELIMINADO - archivo no existe
 import Users from './pages/Users';
 import Roles from './pages/Roles';
+import Reports from './pages/Reports';
+import ProfitabilityAnalysis from './pages/ProfitabilityAnalysis';
 import { ROUTE_PERMISSION_MAP } from './config/permissionsConfig';
 
 // Componente Layout para rutas protegidas
@@ -84,6 +86,14 @@ export default function App() {
           
           {/* PANEL DE DATOS */}
           <Route path="/dashboard" element={
+            <PrivateRoute requiredPermission="dashboard.alerts">
+              <ProtectedLayout>
+                <Dashboard />
+              </ProtectedLayout>
+            </PrivateRoute>
+          } />
+          
+          <Route path="/low-stock" element={
             <PrivateRoute requiredPermission="dashboard.alerts">
               <ProtectedLayout>
                 <Dashboard />
@@ -205,6 +215,23 @@ export default function App() {
             <PrivateRoute requiredPermission="reports.financial">
               <ProtectedLayout>
                 <FinanceReports />
+              </ProtectedLayout>
+            </PrivateRoute>
+          } />
+
+          <Route path="/finanzas/rentabilidad" element={
+            <PrivateRoute requiredPermission="reports.profitability">
+              <ProtectedLayout>
+                <ProfitabilityAnalysis />
+              </ProtectedLayout>
+            </PrivateRoute>
+          } />
+
+          {/* INFORMES / REPORTES */}
+          <Route path="/reports" element={
+            <PrivateRoute requiredPermission="reports">
+              <ProtectedLayout>
+                <Reports />
               </ProtectedLayout>
             </PrivateRoute>
           } />

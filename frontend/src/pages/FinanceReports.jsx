@@ -63,23 +63,26 @@ export default function FinanceReports() {
         : ['ID', 'Fecha', 'Proveedor', 'Medicamento', 'Cantidad', 'Costo Unit DOP'];
     }
     const lines = [];
-    lines.push(headers.join(','));
+    // Usar punto y coma como separador para compatibilidad con Excel en español
+    lines.push(headers.join(';'));
     for (const r of rows) {
       if (view === 'byMedicine') {
         if (type === 'sales') {
-          lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.medicineName || ''}"`, (r.expirationDate ? new Date(r.expirationDate).toISOString().split('T')[0] : ''), r.qty].join(','));
+          lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.medicineName || ''}"`, (r.expirationDate ? new Date(r.expirationDate).toISOString().split('T')[0] : ''), r.qty].join(';'));
         } else {
-          lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.medicineName || ''}"`, (r.expirationDate ? new Date(r.expirationDate).toISOString().split('T')[0] : ''), r.qty, Number(r.unitCostDOP || 0).toFixed(2)].join(','));
+          lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.medicineName || ''}"`, (r.expirationDate ? new Date(r.expirationDate).toISOString().split('T')[0] : ''), r.qty, Number(r.unitCostDOP || 0).toFixed(2)].join(';'));
         }
       } else {
         if (type === 'sales') {
-          lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.customerName || ''}"`, `"${r.medicineName || ''}"`, r.qty].join(','));
+          lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.customerName || ''}"`, `"${r.medicineName || ''}"`, r.qty].join(';'));
         } else {
-          lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.supplierName || ''}"`, `"${r.medicineName || ''}"`, r.qty, Number(r.unitCostDOP || 0).toFixed(2)].join(','));
+          lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.supplierName || ''}"`, `"${r.medicineName || ''}"`, r.qty, Number(r.unitCostDOP || 0).toFixed(2)].join(';'));
         }
       }
     }
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    // Agregar BOM (Byte Order Mark) para que Excel reconozca UTF-8
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -108,7 +111,7 @@ export default function FinanceReports() {
       }}>
       <div style={{ marginBottom: '24px' }}>
         <h1 style={{ color: '#2c3e50', margin: 0, fontSize: '28px', fontWeight: '600', marginBottom: '8px' }}>
-          Finanzas · Reporte
+          Finanzas · Reporte Financiero
         </h1>
         <p style={{ color: '#6c757d', margin: 0 }}>
           Reportes por período (por medicamento o por cliente/proveedor) y exportación CSV

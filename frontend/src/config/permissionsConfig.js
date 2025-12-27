@@ -116,15 +116,27 @@ export const PERMISSIONS_HIERARCHY = {
   
   'reports': {
     id: 'reports',
-    name: 'Reportes Financieros',
-    icon: '💰',
-    description: 'Análisis y reportes financieros del sistema',
+    name: 'Informes / Reportes',
+    icon: '📊',
+    description: 'Sistema completo de informes y reportes',
     children: [
       { 
         id: 'reports.financial', 
         name: 'Reporte Financiero', 
         route: '/finanzas/reportes',
         description: 'Reportes detallados de finanzas'
+      },
+      { 
+        id: 'reports.profitability', 
+        name: 'Análisis de Rentabilidad', 
+        route: '/finanzas/rentabilidad',
+        description: 'Análisis de rentabilidad por medicamento, cliente y proveedor'
+      },
+      { 
+        id: 'reports.main', 
+        name: 'Informes / Reportes', 
+        route: '/reports',
+        description: 'Reportes de facturación y registro de ventas'
       }
     ]
   },
@@ -225,6 +237,8 @@ export const ROUTE_PERMISSION_MAP = {
   '/sales': 'sales',
   
   '/finanzas/reportes': 'reports.financial',
+  '/finanzas/rentabilidad': 'reports.profitability',
+  '/reports': 'reports.main',
   
   '/users': 'users.list',
   '/roles': 'users.roles'

@@ -8,6 +8,7 @@ import {
   Legend
 } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
+import DashboardUnified from './DashboardUnified';
 
 // Registrar componentes de Chart.js
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -121,6 +122,11 @@ export default function Dashboard() {
   }, [low]);
 
   const renderContent = () => {
+    // Mostrar dashboard unificado en la ruta principal
+    if (location.pathname === '/dashboard') {
+      return <DashboardUnified />;
+    }
+    
     switch (location.pathname) {
       case '/best-prices': {
         const hasData = Array.isArray(supplierSuggestions) && supplierSuggestions.length > 0;
@@ -587,6 +593,7 @@ export default function Dashboard() {
           </div>
         );
       }
+      case '/low-stock':
       default: {
         const hasLow = Array.isArray(low) && low.length > 0;
         return (

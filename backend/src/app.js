@@ -16,6 +16,8 @@ import utilityRates from './routes/utilityRates.js';
 import users from './routes/users.js';
 import roles from './routes/roles.js';
 import topbar from './routes/topbar.js';
+import profitability from './routes/profitability.js';
+import dashboard from './routes/dashboard.js';
 import schedulerService from './services/scheduler.js';
 
 const app = express();
@@ -92,6 +94,8 @@ app.use('/api/utility-rates', authenticate, utilityRates);
 app.use('/api/users', authenticate, users);
 app.use('/api/roles', authenticate, roles);
 app.use('/api/topbar', authenticate, topbar);
+app.use('/api/profitability', authenticate, profitability);
+app.use('/api/dashboard', authenticate, dashboard);
 
 // Iniciar el scheduler de tasas de cambio
 schedulerService.start();
