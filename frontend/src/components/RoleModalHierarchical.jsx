@@ -34,14 +34,31 @@ const RoleModalHierarchical = ({ role, onSave, onClose }) => {
       let perms = [];
       if (role.permissions) {
         try {
-          perms = typeof role.permissions === 'string' 
+          const parsed = typeof role.permissions === 'string' 
             ? JSON.parse(role.permissions) 
             : role.permissions;
-        } catch {
+          
+          // Si es un array, usarlo directamente
+          if (Array.isArray(parsed)) {
+            perms = parsed;
+          } 
+          // Si es un objeto (permisos granulares), extraer las claves que tienen permisos true
+          else if (typeof parsed === 'object' && parsed !== null) {
+            perms = Object.keys(parsed).filter(key => {
+              const permission = parsed[key];
+              // Si el permiso tiene sub-permisos (view, create, etc.), verificar si alguno es true
+              if (typeof permission === 'object' && permission !== null) {
+                return Object.values(permission).some(v => v === true);
+              }
+              return permission === true;
+            });
+          }
+        } catch (err) {
+          console.error('Error parsing permissions:', err);
           perms = [];
         }
       }
-      setSelectedPermissions(Array.isArray(perms) ? perms : []);
+      setSelectedPermissions(perms);
       
       // Auto-expandir módulos que tienen permisos seleccionados
       const expanded = {};
