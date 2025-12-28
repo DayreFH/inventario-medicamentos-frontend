@@ -52,11 +52,13 @@ export default function Login() {
           } else {
             console.log('⚠️ StartPanel no es accesible:', startPanel);
             // Buscar la primera ruta que sí sea accesible
-            for (const permission of permissions) {
-              const routes = getRoutesForPermission(permission);
+            // permissions es un objeto, no un array, así que iteramos sobre sus claves
+            const permissionKeys = Object.keys(permissions || {});
+            for (const permissionKey of permissionKeys) {
+              const routes = getRoutesForPermission(permissionKey);
               if (routes.length > 0) {
                 targetRoute = routes[0];
-                console.log(`✅ Ruta accesible encontrada: ${targetRoute} (permiso: ${permission})`);
+                console.log(`✅ Ruta accesible encontrada: ${targetRoute} (permiso: ${permissionKey})`);
                 break;
               }
             }
