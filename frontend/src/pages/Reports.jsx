@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { PAGE_CONTAINER, DARK_HEADER, CONTENT_CONTAINER } from '../styles/standardLayout';
+import InventoryReports from '../components/InventoryReports';
+import ExecutiveReports from '../components/ExecutiveReports';
 
 const Reports = () => {
-  const [activeTab, setActiveTab] = useState('facturacion');
+  const [activeTab, setActiveTab] = useState('inventory');
 
   return (
     <div style={PAGE_CONTAINER}>
@@ -13,7 +15,7 @@ const Reports = () => {
           <div>
             <div style={{ fontSize: '16px', fontWeight: '600' }}>Informes / Reportes</div>
             <div style={{ fontSize: '12px', opacity: 0.9 }}>
-              Gestión de reportes e informes del sistema
+              Reportes especializados de inventario y ejecutivos
             </div>
           </div>
         </div>
@@ -33,66 +35,51 @@ const Reports = () => {
           gap: '8px'
         }}>
           <button
-            onClick={() => setActiveTab('facturacion')}
+            onClick={() => setActiveTab('inventory')}
             style={{
               padding: '12px 24px',
               border: 'none',
-              backgroundColor: activeTab === 'facturacion' ? '#2c3e50' : 'transparent',
-              color: activeTab === 'facturacion' ? 'white' : '#666',
+              backgroundColor: activeTab === 'inventory' ? '#3b82f6' : 'transparent',
+              color: activeTab === 'inventory' ? 'white' : '#666',
               cursor: 'pointer',
-              fontWeight: activeTab === 'facturacion' ? '600' : '400',
+              fontWeight: activeTab === 'inventory' ? '600' : '400',
               fontSize: '14px',
               borderRadius: '4px 4px 0 0',
               transition: 'all 0.2s'
             }}
           >
-            📄 Facturación
+            📦 Inventario
           </button>
           <button
-            onClick={() => setActiveTab('ventas')}
+            onClick={() => setActiveTab('executive')}
             style={{
               padding: '12px 24px',
               border: 'none',
-              backgroundColor: activeTab === 'ventas' ? '#2c3e50' : 'transparent',
-              color: activeTab === 'ventas' ? 'white' : '#666',
+              backgroundColor: activeTab === 'executive' ? '#3b82f6' : 'transparent',
+              color: activeTab === 'executive' ? 'white' : '#666',
               cursor: 'pointer',
-              fontWeight: activeTab === 'ventas' ? '600' : '400',
+              fontWeight: activeTab === 'executive' ? '600' : '400',
               fontSize: '14px',
               borderRadius: '4px 4px 0 0',
               transition: 'all 0.2s'
             }}
           >
-            💰 Registro de Ventas
+            💼 Ejecutivos
           </button>
         </div>
 
         {/* Tab Content */}
         <div style={{
           flex: 1,
-          backgroundColor: '#ffffff',
-          padding: '24px',
+          backgroundColor: '#f8fafc',
           overflow: 'auto'
         }}>
-          {activeTab === 'facturacion' && (
-            <div>
-              <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px', color: '#2c3e50' }}>
-                📄 Reportes de Facturación
-              </h3>
-              <p style={{ color: '#666', fontSize: '14px' }}>
-                Aquí se mostrarán los reportes de facturación...
-              </p>
-            </div>
+          {activeTab === 'inventory' && (
+            <InventoryReports />
           )}
 
-          {activeTab === 'ventas' && (
-            <div>
-              <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px', color: '#2c3e50' }}>
-                💰 Reportes de Registro de Ventas
-              </h3>
-              <p style={{ color: '#666', fontSize: '14px' }}>
-                Aquí se mostrarán los reportes de registro de ventas...
-              </p>
-            </div>
+          {activeTab === 'executive' && (
+            <ExecutiveReports />
           )}
         </div>
       </div>
@@ -101,4 +88,3 @@ const Reports = () => {
 };
 
 export default Reports;
-

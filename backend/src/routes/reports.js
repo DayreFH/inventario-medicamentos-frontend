@@ -454,6 +454,272 @@ router.get('/idle-medicines', async (_req, res) => {
   }
 });
 
+// ================= REPORTES EJECUTIVOS =================
+
+/**
+ * GET /api/reports/monthly-invoicing
+ * Facturación mensual agrupada por mes
+ * Query params: year (opcional, default: año actual)
+ */
+router.get('/monthly-invoicing', async (req, res) => {
+  try {
+    const { year } = req.query;
+    const targetYear = year ? parseInt(year) : new Date().getFullYear();
+
+    console.log(`📊 Obteniendo facturación mensual para año ${targetYear}`);
+
+    // Obtener todas las facturas del año
+    const startDate = new Date(targetYear, 0, 1); // 1 de enero
+    const endDate = new Date(targetYear, 11, 31, 23, 59, 59, 999); // 31 de diciembre
+
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        createdAt: {
+          gte: startDate,
+          lte: endDate
+        },
+        status: 'emitida' // Solo facturas emitidas
+      },
+      select: {
+        id: true,
+        ncf: true,
+        subtotal: true,
+        itbis: true,
+        itbisAmount: true,
+        discount: true,
+        discountAmount: true,
+        total: true,
+        createdAt: true
+      }
+    });
+
+    console.log(`📦 Facturas encontradas: ${invoices.length}`);
+
+    // Agrupar por mes
+    const monthlyData = Array.from({ length: 12 }, (_, i) => ({
+      month: i + 1,
+      monthName: new Date(targetYear, i, 1).toLocaleString('es', { month: 'long' }),
+      invoiceCount: 0,
+      subtotal: 0,
+      itbisAmount: 0,
+      discountAmount: 0,
+      total: 0
+    }));
+
+    // Sumar valores por mes
+    for (const invoice of invoices) {
+      const month = new Date(invoice.createdAt).getMonth(); // 0-11
+      monthlyData[month].invoiceCount += 1;
+      monthlyData[month].subtotal += Number(invoice.subtotal) || 0;
+      monthlyData[month].itbisAmount += Number(invoice.itbisAmount) || 0;
+      monthlyData[month].discountAmount += Number(invoice.discountAmount) || 0;
+      monthlyData[month].total += Number(invoice.total) || 0;
+    }
+
+    // Calcular totales del año
+    const yearTotal = {
+      invoiceCount: invoices.length,
+      subtotal: monthlyData.reduce((sum, m) => sum + m.subtotal, 0),
+      itbisAmount: monthlyData.reduce((sum, m) => sum + m.itbisAmount, 0),
+      discountAmount: monthlyData.reduce((sum, m) => sum + m.discountAmount, 0),
+      total: monthlyData.reduce((sum, m) => sum + m.total, 0)
+    };
+
+    // Comparación con año anterior (opcional)
+    const previousYear = targetYear - 1;
+    const prevStartDate = new Date(previousYear, 0, 1);
+    const prevEndDate = new Date(previousYear, 11, 31, 23, 59, 59, 999);
+
+    const previousYearInvoices = await prisma.invoice.findMany({
+      where: {
+        createdAt: {
+          gte: prevStartDate,
+          lte: prevEndDate
+        },
+        status: 'emitida'
+      },
+      select: {
+        total: true
+      }
+    });
+
+    const previousYearTotal = previousYearInvoices.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+    const growthPercentage = previousYearTotal > 0 
+      ? ((yearTotal.total - previousYearTotal) / previousYearTotal * 100).toFixed(2)
+      : 0;
+
+    res.json({
+      year: targetYear,
+      monthlyData,
+      yearTotal,
+      comparison: {
+        previousYear,
+        previousYearTotal: Number(previousYearTotal.toFixed(2)),
+        growthPercentage: Number(growthPercentage)
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en /reports/monthly-invoicing:', error);
+    res.status(500).json({ 
+      error: 'Error obteniendo facturación mensual',
+      detail: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/reports/comparative-analysis
+ * Análisis comparativo entre dos períodos
+ * Query params: period1Start, period1End, period2Start, period2End
+ */
+router.get('/comparative-analysis', async (req, res) => {
+  try {
+    const { period1Start, period1End, period2Start, period2End } = req.query;
+
+    if (!period1Start || !period1End || !period2Start || !period2End) {
+      return res.status(400).json({ 
+        error: 'Parámetros requeridos: period1Start, period1End, period2Start, period2End' 
+      });
+    }
+
+    console.log('📊 Análisis comparativo:');
+    console.log(`  Período 1: ${period1Start} - ${period1End}`);
+    console.log(`  Período 2: ${period2Start} - ${period2End}`);
+
+    // Función helper para obtener datos de un período
+    const getPeriodData = async (startDate, endDate) => {
+      const start = new Date(`${startDate}T00:00:00`);
+      const end = new Date(`${endDate}T23:59:59.999`);
+
+      // Facturas del período
+      const invoices = await prisma.invoice.findMany({
+        where: {
+          createdAt: { gte: start, lte: end },
+          status: 'emitida'
+        }
+      });
+
+      // Ventas del período
+      const sales = await prisma.sale.findMany({
+        where: {
+          date: { gte: start, lte: end }
+        },
+        include: {
+          saleitem: true
+        }
+      });
+
+      // Compras del período
+      const receipts = await prisma.receipt.findMany({
+        where: {
+          date: { gte: start, lte: end }
+        },
+        include: {
+          receiptitem: true
+        }
+      });
+
+      // Clientes únicos
+      const uniqueCustomers = new Set(sales.map(s => s.customerId)).size;
+
+      // Calcular totales
+      const totalInvoiced = invoices.reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+      const totalITBIS = invoices.reduce((sum, inv) => sum + (Number(inv.itbisAmount) || 0), 0);
+      const totalDiscount = invoices.reduce((sum, inv) => sum + (Number(inv.discountAmount) || 0), 0);
+
+      const totalSalesQty = sales.reduce((sum, sale) => {
+        return sum + sale.saleitem.reduce((s, item) => s + (item.qty || 0), 0);
+      }, 0);
+
+      const totalPurchasesAmount = receipts.reduce((sum, receipt) => {
+        return sum + receipt.receiptitem.reduce((s, item) => {
+          const cost = Number(item.unit_cost) || 0;
+          const qty = item.qty || 0;
+          return s + (cost * qty);
+        }, 0);
+      }, 0);
+
+      return {
+        invoices: {
+          count: invoices.length,
+          total: Number(totalInvoiced.toFixed(2)),
+          itbis: Number(totalITBIS.toFixed(2)),
+          discount: Number(totalDiscount.toFixed(2))
+        },
+        sales: {
+          count: sales.length,
+          totalQty: totalSalesQty
+        },
+        purchases: {
+          count: receipts.length,
+          totalAmount: Number(totalPurchasesAmount.toFixed(2))
+        },
+        customers: {
+          unique: uniqueCustomers
+        }
+      };
+    };
+
+    // Obtener datos de ambos períodos
+    const [period1Data, period2Data] = await Promise.all([
+      getPeriodData(period1Start, period1End),
+      getPeriodData(period2Start, period2End)
+    ]);
+
+    // Calcular diferencias y porcentajes
+    const calculateComparison = (value1, value2) => {
+      const difference = value1 - value2;
+      const percentage = value2 > 0 ? ((difference / value2) * 100).toFixed(2) : 0;
+      return {
+        value1,
+        value2,
+        difference: Number(difference.toFixed(2)),
+        percentage: Number(percentage)
+      };
+    };
+
+    const comparison = {
+      invoices: {
+        count: calculateComparison(period1Data.invoices.count, period2Data.invoices.count),
+        total: calculateComparison(period1Data.invoices.total, period2Data.invoices.total)
+      },
+      sales: {
+        count: calculateComparison(period1Data.sales.count, period2Data.sales.count),
+        totalQty: calculateComparison(period1Data.sales.totalQty, period2Data.sales.totalQty)
+      },
+      purchases: {
+        count: calculateComparison(period1Data.purchases.count, period2Data.purchases.count),
+        totalAmount: calculateComparison(period1Data.purchases.totalAmount, period2Data.purchases.totalAmount)
+      },
+      customers: {
+        unique: calculateComparison(period1Data.customers.unique, period2Data.customers.unique)
+      }
+    };
+
+    res.json({
+      period1: {
+        start: period1Start,
+        end: period1End,
+        data: period1Data
+      },
+      period2: {
+        start: period2Start,
+        end: period2End,
+        data: period2Data
+      },
+      comparison
+    });
+
+  } catch (error) {
+    console.error('Error en /reports/comparative-analysis:', error);
+    res.status(500).json({ 
+      error: 'Error en análisis comparativo',
+      detail: error.message 
+    });
+  }
+});
+
 export default router;
  
 // ================= FINANZAS: Ventas y Compras por período =================
@@ -735,5 +1001,251 @@ router.get('/purchases-by-medicine', async (req, res) => {
   } catch (error) {
     console.error('Error en /reports/purchases-by-medicine:', error);
     res.status(500).json({ error: 'Error obteniendo compras por medicamento' });
+  }
+});
+
+// ================= NUEVOS REPORTES DE INVENTARIO =================
+
+/**
+ * GET /api/reports/inventory-rotation
+ * Análisis de rotación de inventario (productos más/menos vendidos)
+ */
+router.get('/inventory-rotation', async (req, res) => {
+  try {
+    const { start, end, limit = 20 } = req.query;
+    
+    // Construir filtro de fechas
+    const dateFilter = {};
+    if (start || end) {
+      dateFilter.date = {};
+      if (start) dateFilter.date.gte = new Date(start);
+      if (end) {
+        const endDate = new Date(end);
+        endDate.setHours(23, 59, 59, 999);
+        dateFilter.date.lte = endDate;
+      }
+    }
+
+    // Obtener todas las ventas del período
+    const sales = await prisma.sale.findMany({
+      where: dateFilter,
+      include: {
+        saleitem: {
+          include: {
+            medicines: true
+          }
+        }
+      }
+    });
+
+    // Agrupar por medicamento
+    const medicineStats = new Map();
+    
+    for (const sale of sales) {
+      for (const item of sale.saleitem) {
+        const medId = item.medicineId;
+        const existing = medicineStats.get(medId);
+        
+        if (existing) {
+          existing.totalSold += item.qty;
+          if (new Date(sale.date) > new Date(existing.lastSale)) {
+            existing.lastSale = sale.date;
+          }
+        } else {
+          medicineStats.set(medId, {
+            medicineId: medId,
+            medicineCode: item.medicines?.codigo || 'N/A',
+            medicineName: item.medicines?.nombreComercial || 'N/A',
+            totalSold: item.qty,
+            lastSale: sale.date,
+            stock: item.medicines?.stock || 0
+          });
+        }
+      }
+    }
+
+    // Convertir a array y ordenar
+    const allMedicines = Array.from(medicineStats.values());
+    
+    // Top vendidos (ordenar por totalSold descendente)
+    const topSelling = [...allMedicines]
+      .sort((a, b) => b.totalSold - a.totalSold)
+      .slice(0, Number(limit));
+
+    // Menos vendidos (ordenar por totalSold ascendente, excluir los que no se vendieron)
+    const lowSelling = [...allMedicines]
+      .filter(m => m.totalSold > 0)
+      .sort((a, b) => a.totalSold - b.totalSold)
+      .slice(0, Number(limit));
+
+    // Medicamentos sin movimiento (usar endpoint existente)
+    const idleMeds = await prisma.Medicine.findMany({
+      include: {
+        parametros: true,
+        saleitem: {
+          include: {
+            sale: {
+              select: { date: true }
+            }
+          },
+          orderBy: {
+            sale: {
+              date: 'desc'
+            }
+          },
+          take: 1
+        },
+        receiptitem: {
+          include: {
+            receipt: {
+              select: { date: true }
+            }
+          },
+          orderBy: {
+            receipt: {
+              date: 'desc'
+            }
+          },
+          take: 1
+        }
+      }
+    });
+
+    const today = new Date();
+    const noMovement = [];
+
+    for (const med of idleMeds) {
+      const lastSaleDate = med.saleitem[0]?.sale?.date;
+      const lastReceiptDate = med.receiptitem[0]?.receipt?.date;
+      
+      const lastMovement = lastSaleDate && lastReceiptDate
+        ? (new Date(lastSaleDate) > new Date(lastReceiptDate) ? lastSaleDate : lastReceiptDate)
+        : (lastSaleDate || lastReceiptDate || med.created_at);
+
+      if (!lastMovement) continue;
+      
+      const diffMs = today - new Date(lastMovement);
+      const daysIdle = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const thresholdDays = med.parametros?.tiempoSinMovimiento || 90;
+
+      if (daysIdle >= thresholdDays) {
+        noMovement.push({
+          medicineId: med.id,
+          medicineCode: med.codigo,
+          medicineName: med.nombreComercial,
+          stock: med.stock,
+          daysIdle,
+          lastMovement
+        });
+      }
+    }
+
+    res.json({
+      topSelling,
+      lowSelling,
+      noMovement: noMovement.slice(0, Number(limit))
+    });
+
+  } catch (error) {
+    console.error('Error en /reports/inventory-rotation:', error);
+    res.status(500).json({ 
+      error: 'Error obteniendo rotación de inventario',
+      detail: error.message 
+    });
+  }
+});
+
+/**
+ * GET /api/reports/inventory-valuation
+ * Valorización del inventario actual (stock × precio compra)
+ */
+router.get('/inventory-valuation', async (req, res) => {
+  try {
+    // Obtener todos los medicamentos con sus precios activos
+    const medicines = await prisma.Medicine.findMany({
+      where: {
+        stock: {
+          gt: 0 // Solo medicamentos con stock
+        }
+      },
+      include: {
+        precios: {
+          where: { activo: true },
+          orderBy: { created_at: 'desc' },
+          take: 1,
+          include: {
+            supplier: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    let totalValue = 0;
+    const byMedicine = [];
+    const supplierMap = new Map();
+
+    for (const med of medicines) {
+      const price = med.precios[0];
+      if (!price) continue;
+
+      const unitCost = Number(price.precioCompraUnitario) || 0;
+      const stock = Number(med.stock) || 0;
+      const totalMedValue = unitCost * stock;
+
+      totalValue += totalMedValue;
+
+      byMedicine.push({
+        medicineId: med.id,
+        medicineCode: med.codigo,
+        medicineName: med.nombreComercial,
+        stock: stock,
+        unitCost: unitCost,
+        totalValue: totalMedValue,
+        supplierId: price.supplier?.id || null,
+        supplierName: price.supplier?.name || 'Sin proveedor'
+      });
+
+      // Agrupar por proveedor
+      const supplierId = price.supplier?.id || 0;
+      const supplierName = price.supplier?.name || 'Sin proveedor';
+      
+      if (supplierMap.has(supplierId)) {
+        const existing = supplierMap.get(supplierId);
+        existing.totalValue += totalMedValue;
+        existing.medicineCount += 1;
+      } else {
+        supplierMap.set(supplierId, {
+          supplierId,
+          supplierName,
+          totalValue: totalMedValue,
+          medicineCount: 1
+        });
+      }
+    }
+
+    // Convertir mapa de proveedores a array
+    const bySupplier = Array.from(supplierMap.values())
+      .sort((a, b) => b.totalValue - a.totalValue);
+
+    // Ordenar medicamentos por valor total descendente
+    byMedicine.sort((a, b) => b.totalValue - a.totalValue);
+
+    res.json({
+      total: Number(totalValue.toFixed(2)),
+      byMedicine,
+      bySupplier
+    });
+
+  } catch (error) {
+    console.error('Error en /reports/inventory-valuation:', error);
+    res.status(500).json({ 
+      error: 'Error obteniendo valorización de inventario',
+      detail: error.message 
+    });
   }
 });
