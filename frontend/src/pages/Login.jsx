@@ -39,21 +39,25 @@ export default function Login() {
 
         console.log('🔍 Permisos del usuario en login:', permissions);
 
+        // Convertir objeto de permisos a array de claves (ej: {dashboard: true, sales: true} → ['dashboard', 'sales'])
+        const permissionKeys = Object.keys(permissions || {});
+        console.log('🔍 Claves de permisos:', permissionKeys);
+
         // Intentar encontrar la primera ruta accesible
         let targetRoute = null;
 
         // Primero intentar el startPanel configurado
         const startPanel = result.user?.role?.startPanel || result.user?.roles?.startPanel || '/dashboard';
+        console.log('🔍 StartPanel configurado:', startPanel);
         
         if (FEATURES.GRANULAR_PERMISSIONS) {
-          if (hasAccessToRoute(permissions, startPanel)) {
+          // hasAccessToRoute espera un array, así que le pasamos permissionKeys
+          if (hasAccessToRoute(permissionKeys, startPanel)) {
             targetRoute = startPanel;
             console.log('✅ StartPanel es accesible:', targetRoute);
           } else {
             console.log('⚠️ StartPanel no es accesible:', startPanel);
             // Buscar la primera ruta que sí sea accesible
-            // permissions es un objeto, no un array, así que iteramos sobre sus claves
-            const permissionKeys = Object.keys(permissions || {});
             for (const permissionKey of permissionKeys) {
               const routes = getRoutesForPermission(permissionKey);
               if (routes.length > 0) {
