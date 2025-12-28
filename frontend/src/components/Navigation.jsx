@@ -23,7 +23,8 @@ const Navigation = () => {
       children: [
         { title: 'Tasa de Cambio DOP-USD', path: '/admin/dop-usd' },
         { title: 'Tasa de Cambio USD-MN', path: '/admin/usd-mn' },
-        { title: 'Tasa de Envío', path: '/admin/shipping' }
+        { title: 'Tasa de Envío', path: '/admin/shipping' },
+        { title: 'Datos de la Empresa', path: '/admin/company' }
         // ❌ ELIMINADO: { title: '% de Utilidad', path: '/admin/utility' }
       ]
     },

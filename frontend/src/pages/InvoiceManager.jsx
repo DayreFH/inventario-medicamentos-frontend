@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import api from '../api/http';
 import { DARK_HEADER } from '../styles/standardLayout';
+import InvoicePreview from '../components/InvoicePreview';
+import InvoiceReports from '../components/InvoiceReports';
 
 const InvoiceManager = () => {
   // Estados para pestañas
-  const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'emitted'
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'emitted' | 'reports'
   
   // Estados para ventas pendientes
   const [pendingSales, setPendingSales] = useState([]);
@@ -21,6 +23,11 @@ const InvoiceManager = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [cancelReason, setCancelReason] = useState('');
   
+  // Estados para vista previa de factura
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [showPreviewBeforeCreate, setShowPreviewBeforeCreate] = useState(false);
+  
   // Estados para el formulario de factura
   const [invoiceData, setInvoiceData] = useState({
     ncf: '',
@@ -28,6 +35,11 @@ const InvoiceManager = () => {
     discount: 0,
     notes: ''
   });
+  
+  // Estados para NCF automático
+  const [ncfConfig, setNcfConfig] = useState(null);
+  const [loadingNCF, setLoadingNCF] = useState(false);
+  const [ncfWarning, setNcfWarning] = useState(null);
 
   useEffect(() => {
     if (activeTab === 'pending') {
@@ -35,6 +47,7 @@ const InvoiceManager = () => {
     } else if (activeTab === 'emitted') {
       loadEmittedInvoices();
     }
+    // La pestaña 'reports' carga sus propios datos internamente
   }, [activeTab]);
 
   const loadPendingSales = async () => {
@@ -63,7 +76,34 @@ const InvoiceManager = () => {
     }
   };
 
-  const handleSelectSale = (sale) => {
+  const loadNextNCF = async () => {
+    setLoadingNCF(true);
+    setNcfWarning(null);
+    try {
+      const { data } = await api.get('/company-settings/next-ncf');
+      setNcfConfig(data);
+      
+      if (data.autoGenerate && data.nextNCF) {
+        // Autocompletar el NCF
+        setInvoiceData(prev => ({
+          ...prev,
+          ncf: data.nextNCF
+        }));
+        
+        // Mostrar advertencia si existe
+        if (data.warning) {
+          setNcfWarning(data.warning);
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando configuración de NCF:', error);
+      // No mostrar alerta, solo log. El usuario puede ingresar NCF manualmente
+    } finally {
+      setLoadingNCF(false);
+    }
+  };
+
+  const handleSelectSale = async (sale) => {
     setSelectedSale(sale);
     setShowInvoiceForm(true);
     setInvoiceData({
@@ -72,6 +112,9 @@ const InvoiceManager = () => {
       discount: 0,
       notes: ''
     });
+    
+    // Cargar próximo NCF automáticamente
+    await loadNextNCF();
   };
 
   const handleCreateInvoice = async () => {
@@ -135,6 +178,58 @@ const InvoiceManager = () => {
     } finally {
       setLoadingInvoices(false);
     }
+  };
+
+  const handleViewInvoice = async (invoice) => {
+    try {
+      setLoadingInvoices(true);
+      const { data } = await api.get(`/invoices/${invoice.id}`);
+      setPreviewInvoice(data);
+      setShowPreview(true);
+    } catch (error) {
+      console.error('Error cargando factura:', error);
+      alert('Error al cargar los detalles de la factura');
+    } finally {
+      setLoadingInvoices(false);
+    }
+  };
+
+  const handlePreviewBeforeCreate = () => {
+    if (!selectedSale) return;
+    if (!invoiceData.ncf.trim()) {
+      alert('Debe ingresar un NCF para ver la vista previa');
+      return;
+    }
+
+    // Crear objeto de factura temporal para vista previa
+    const subtotal = calculateSubtotal();
+    const itbisAmount = calculateITBIS();
+    const discountAmount = calculateDiscount();
+    const total = calculateTotal();
+
+    const tempInvoice = {
+      id: 'PREVIEW',
+      ncf: invoiceData.ncf,
+      subtotal: subtotal,
+      itbis: parseFloat(invoiceData.itbis) || 0,
+      itbisAmount: itbisAmount,
+      discount: parseFloat(invoiceData.discount) || 0,
+      discountAmount: discountAmount,
+      total: total,
+      notes: invoiceData.notes,
+      status: 'emitida',
+      createdAt: new Date().toISOString(),
+      sale: {
+        ...selectedSale,
+        saleitem: selectedSale.items.map(item => ({
+          ...item,
+          medicines: item.medicine
+        }))
+      }
+    };
+
+    setPreviewInvoice(tempInvoice);
+    setShowPreviewBeforeCreate(true);
   };
 
   const calculateSubtotal = () => {
@@ -224,6 +319,22 @@ const InvoiceManager = () => {
             }}
           >
             🧾 Facturas Emitidas
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: activeTab === 'reports' ? '#3b82f6' : 'transparent',
+              color: activeTab === 'reports' ? 'white' : '#64748b',
+              border: 'none',
+              borderBottom: activeTab === 'reports' ? '3px solid #3b82f6' : '3px solid transparent',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              transition: 'all 0.2s'
+            }}
+          >
+            📊 Reportes
           </button>
         </div>
       )}
@@ -358,7 +469,7 @@ const InvoiceManager = () => {
               </div>
             )}
             </div>
-          ) : (
+          ) : activeTab === 'emitted' ? (
             // PESTAÑA: Facturas Emitidas
             <div>
               <div style={{
@@ -492,12 +603,12 @@ const InvoiceManager = () => {
                               </span>
                             </td>
                             <td style={{ padding: '12px', textAlign: 'center' }}>
-                              {!isVoid && (
+                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                 <button
-                                  onClick={() => handleCancelInvoice(invoice)}
+                                  onClick={() => handleViewInvoice(invoice)}
                                   style={{
                                     padding: '6px 12px',
-                                    backgroundColor: '#ef4444',
+                                    backgroundColor: '#3b82f6',
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '4px',
@@ -506,9 +617,26 @@ const InvoiceManager = () => {
                                     fontWeight: '500'
                                   }}
                                 >
-                                  ❌ Anular
+                                  👁️ Ver Detalle
                                 </button>
-                              )}
+                                {!isVoid && (
+                                  <button
+                                    onClick={() => handleCancelInvoice(invoice)}
+                                    style={{
+                                      padding: '6px 12px',
+                                      backgroundColor: '#ef4444',
+                                      color: 'white',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      fontSize: '12px',
+                                      cursor: 'pointer',
+                                      fontWeight: '500'
+                                    }}
+                                  >
+                                    ❌ Anular
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -518,6 +646,9 @@ const InvoiceManager = () => {
                 </div>
               )}
             </div>
+          ) : (
+            // PESTAÑA: Reportes
+            <InvoiceReports />
           )
         ) : (
           // Formulario de factura
@@ -632,21 +763,73 @@ const InvoiceManager = () => {
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: '#475569', marginBottom: '6px' }}>
                     NCF (Número de Comprobante Fiscal) *
+                    {ncfConfig?.autoGenerate && (
+                      <span style={{ 
+                        marginLeft: '8px', 
+                        fontSize: '11px', 
+                        color: '#10b981', 
+                        fontWeight: '600',
+                        backgroundColor: '#dcfce7',
+                        padding: '2px 8px',
+                        borderRadius: '4px'
+                      }}>
+                        🤖 AUTOMÁTICO
+                      </span>
+                    )}
                   </label>
-                  <input
-                    type="text"
-                    value={invoiceData.ncf}
-                    onChange={(e) => setInvoiceData({ ...invoiceData, ncf: e.target.value })}
-                    placeholder="Ej: B0100000001"
-                    style={{
-                      width: '100%',
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      value={invoiceData.ncf}
+                      onChange={(e) => setInvoiceData({ ...invoiceData, ncf: e.target.value.toUpperCase() })}
+                      placeholder={ncfConfig?.autoGenerate ? "Generado automáticamente..." : "Ej: B0100000001"}
+                      disabled={loadingNCF}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: `1px solid ${ncfConfig?.autoGenerate ? '#10b981' : '#cbd5e1'}`,
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                        backgroundColor: ncfConfig?.autoGenerate ? '#f0fdf4' : 'white',
+                        fontFamily: 'monospace',
+                        fontWeight: ncfConfig?.autoGenerate ? '600' : 'normal'
+                      }}
+                    />
+                    {loadingNCF && (
+                      <div style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: '12px',
+                        color: '#64748b'
+                      }}>
+                        ⏳
+                      </div>
+                    )}
+                  </div>
+                  {ncfWarning && (
+                    <div style={{
+                      marginTop: '8px',
                       padding: '8px 12px',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      boxSizing: 'border-box'
-                    }}
-                  />
+                      backgroundColor: '#fef3c7',
+                      border: '1px solid #fbbf24',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      color: '#92400e'
+                    }}>
+                      {ncfWarning}
+                    </div>
+                  )}
+                  {ncfConfig?.autoGenerate && (
+                    <p style={{ fontSize: '11px', color: '#64748b', margin: '6px 0 0 0' }}>
+                      💡 NCF generado automáticamente. Tipo: <strong>{ncfConfig.ncfType}</strong>
+                      {ncfConfig.rangeStart && ncfConfig.rangeEnd && (
+                        <span> | Rango: {ncfConfig.rangeStart} - {ncfConfig.rangeEnd}</span>
+                      )}
+                    </p>
+                  )}
                 </div>
 
                 <div style={{ marginBottom: '16px' }}>
@@ -767,24 +950,43 @@ const InvoiceManager = () => {
                   </div>
                 </div>
 
-                <button
-                  onClick={handleCreateInvoice}
-                  disabled={loading || !invoiceData.ncf.trim()}
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    backgroundColor: !invoiceData.ncf.trim() ? '#cbd5e1' : '#10b981',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    cursor: !invoiceData.ncf.trim() ? 'not-allowed' : 'pointer',
-                    opacity: loading ? 0.6 : 1
-                  }}
-                >
-                  {loading ? 'Creando...' : '✅ Crear Factura'}
-                </button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={handlePreviewBeforeCreate}
+                    disabled={loading || !invoiceData.ncf.trim()}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      backgroundColor: !invoiceData.ncf.trim() ? '#cbd5e1' : '#3b82f6',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: !invoiceData.ncf.trim() ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    👁️ Vista Previa
+                  </button>
+                  <button
+                    onClick={handleCreateInvoice}
+                    disabled={loading || !invoiceData.ncf.trim()}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      backgroundColor: !invoiceData.ncf.trim() ? '#cbd5e1' : '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: !invoiceData.ncf.trim() ? 'not-allowed' : 'pointer',
+                      opacity: loading ? 0.6 : 1
+                    }}
+                  >
+                    {loading ? 'Creando...' : '✅ Crear Factura'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -883,6 +1085,313 @@ const InvoiceManager = () => {
                 }}
               >
                 {loadingInvoices ? 'Anulando...' : '✅ Confirmar Anulación'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vista Previa de Factura (después de crear) */}
+      {showPreview && previewInvoice && (
+        <InvoicePreview
+          invoice={previewInvoice}
+          onClose={() => {
+            setShowPreview(false);
+            setPreviewInvoice(null);
+          }}
+        />
+      )}
+
+      {/* Vista Previa ANTES de Crear */}
+      {showPreviewBeforeCreate && previewInvoice && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '20px',
+          overflowY: 'auto'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            maxWidth: '800px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+            position: 'relative'
+          }}>
+            {/* Marca de agua VISTA PREVIA */}
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%) rotate(-45deg)',
+              fontSize: '120px',
+              fontWeight: 'bold',
+              color: 'rgba(59, 130, 246, 0.1)',
+              pointerEvents: 'none',
+              zIndex: 1,
+              whiteSpace: 'nowrap'
+            }}>
+              VISTA PREVIA
+            </div>
+
+            {/* Header con botones */}
+            <div style={{
+              padding: '20px',
+              borderBottom: '2px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              position: 'sticky',
+              top: 0,
+              backgroundColor: 'white',
+              zIndex: 10
+            }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#1e293b' }}>
+                  👁️ Vista Previa de Factura
+                </h2>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                  Esta es una vista previa. La factura aún NO ha sido creada.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPreviewBeforeCreate(false);
+                  setPreviewInvoice(null);
+                }}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: '#64748b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                ✕ Cerrar
+              </button>
+            </div>
+
+            {/* Contenido de la factura (reutilizar el mismo diseño de InvoicePreview) */}
+            <div style={{ padding: '40px', position: 'relative', zIndex: 2 }}>
+              {/* Encabezado */}
+              <div style={{
+                backgroundColor: '#3b82f6',
+                padding: '20px',
+                borderRadius: '8px 8px 0 0',
+                marginBottom: '30px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div>
+                    <h1 style={{ margin: 0, color: 'white', fontSize: '32px', fontWeight: 'bold' }}>
+                      FACTURA
+                    </h1>
+                  </div>
+                  <div style={{ textAlign: 'right', color: 'white', fontSize: '12px' }}>
+                    <div style={{ fontWeight: '600', fontSize: '14px' }}>Inventario Meds</div>
+                    <div>Sistema de Gestión</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Información de la factura */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '20px',
+                marginBottom: '30px'
+              }}>
+                <div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ fontWeight: '600', color: '#475569' }}>NCF:</span>
+                    <span style={{ marginLeft: '8px', color: '#1e293b' }}>{previewInvoice.ncf}</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{ fontWeight: '600', color: '#475569' }}>Fecha:</span>
+                    <span style={{ marginLeft: '8px', color: '#1e293b' }}>
+                      {new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Información del cliente */}
+              <div style={{
+                backgroundColor: '#f8fafc',
+                padding: '20px',
+                borderRadius: '8px',
+                marginBottom: '30px'
+              }}>
+                <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>
+                  CLIENTE
+                </h3>
+                <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6' }}>
+                  <div><strong>Nombre:</strong> {previewInvoice.sale?.customer?.name || 'N/A'}</div>
+                  {previewInvoice.sale?.customer?.email && (
+                    <div><strong>Email:</strong> {previewInvoice.sale.customer.email}</div>
+                  )}
+                  <div><strong>Forma de Pago:</strong> {previewInvoice.sale?.paymentMethod || 'efectivo'}</div>
+                </div>
+              </div>
+
+              {/* Tabla de items */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#3b82f6', color: 'white' }}>
+                    <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600' }}>
+                      Medicamento
+                    </th>
+                    <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600' }}>
+                      Cantidad
+                    </th>
+                    <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600' }}>
+                      Precio Unit.
+                    </th>
+                    <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600' }}>
+                      Subtotal
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewInvoice.sale?.saleitem?.map((item, index) => (
+                    <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>
+                        {item.medicines?.nombreComercial || 'N/A'}
+                      </td>
+                      <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'center' }}>
+                        {item.qty}
+                      </td>
+                      <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'right' }}>
+                        {formatCurrency(item.precio_propuesto_usd || 0)}
+                      </td>
+                      <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b', fontWeight: '600', textAlign: 'right' }}>
+                        {formatCurrency((item.precio_propuesto_usd || 0) * item.qty)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Totales */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '30px' }}>
+                <div style={{ minWidth: '300px' }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '8px 0',
+                    fontSize: '14px',
+                    color: '#475569'
+                  }}>
+                    <span>Subtotal:</span>
+                    <span>{formatCurrency(previewInvoice.subtotal)}</span>
+                  </div>
+                  
+                  {previewInvoice.itbis > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '8px 0',
+                      fontSize: '14px',
+                      color: '#475569'
+                    }}>
+                      <span>ITBIS ({previewInvoice.itbis}%):</span>
+                      <span>{formatCurrency(previewInvoice.itbisAmount)}</span>
+                    </div>
+                  )}
+                  
+                  {previewInvoice.discount > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      padding: '8px 0',
+                      fontSize: '14px',
+                      color: '#ef4444'
+                    }}>
+                      <span>Descuento ({previewInvoice.discount}%):</span>
+                      <span>-{formatCurrency(previewInvoice.discountAmount)}</span>
+                    </div>
+                  )}
+                  
+                  <div style={{
+                    borderTop: '2px solid #cbd5e1',
+                    marginTop: '8px',
+                    paddingTop: '12px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    color: '#1e293b'
+                  }}>
+                    <span>TOTAL:</span>
+                    <span>{formatCurrency(previewInvoice.total)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notas */}
+              {previewInvoice.notes && (
+                <div style={{
+                  backgroundColor: '#fef3c7',
+                  border: '1px solid #fbbf24',
+                  padding: '16px',
+                  borderRadius: '6px'
+                }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600', color: '#92400e' }}>
+                    NOTAS:
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#78350f', lineHeight: '1.5' }}>
+                    {previewInvoice.notes}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer con botones de acción */}
+            <div style={{
+              padding: '20px',
+              borderTop: '2px solid #e2e8f0',
+              backgroundColor: '#f8fafc',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 10
+            }}>
+              <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                💡 Si todo está correcto, cierra esta ventana y haz clic en "✅ Crear Factura"
+              </p>
+              <button
+                onClick={() => {
+                  setShowPreviewBeforeCreate(false);
+                  setPreviewInvoice(null);
+                }}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                ✕ Cerrar Vista Previa
               </button>
             </div>
           </div>

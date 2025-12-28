@@ -20,6 +20,7 @@ import topbar from './routes/topbar.js';
 import profitability from './routes/profitability.js';
 import dashboard from './routes/dashboard.js';
 import companySettings from './routes/companySettings.js';
+import company from './routes/company.js';
 import paymentMethods from './routes/paymentMethods.js';
 import schedulerService from './services/scheduler.js';
 
@@ -101,6 +102,7 @@ app.use('/api/topbar', authenticate, topbar);
 app.use('/api/profitability', authenticate, profitability);
 app.use('/api/dashboard', authenticate, dashboard);
 app.use('/api/company-settings', authenticate, companySettings);
+app.use('/api/company', authenticate, company);
 app.use('/api/payment-methods', authenticate, paymentMethods);
 
 // Iniciar el scheduler de tasas de cambio

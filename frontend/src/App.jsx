@@ -22,6 +22,7 @@ import Roles from './pages/Roles';
 import Reports from './pages/Reports';
 import ProfitabilityAnalysis from './pages/ProfitabilityAnalysis';
 import InvoiceManager from './pages/InvoiceManager';
+import CompanySettings from './pages/CompanySettings';
 import { ROUTE_PERMISSION_MAP } from './config/permissionsConfig';
 
 // Componente Layout para rutas protegidas
@@ -155,6 +156,14 @@ export default function App() {
             <PrivateRoute requiredPermission="admin.shipping">
               <ProtectedLayout>
                 <ShippingRates />
+              </ProtectedLayout>
+            </PrivateRoute>
+          } />
+          
+          <Route path="/admin/company" element={
+            <PrivateRoute requiredPermission="admin.company">
+              <ProtectedLayout>
+                <CompanySettings />
               </ProtectedLayout>
             </PrivateRoute>
           } />

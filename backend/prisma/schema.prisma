@@ -277,6 +277,15 @@ model CompanySettings {
   invoiceSequence Int      @default(1) // Último número usado
   taxRate         Decimal  @default(0) @db.Decimal(5, 2) // % de ITBIS (opcional)
   footerText      String?  @db.Text
+  
+  // Configuración de NCF Automático
+  autoGenerateNCF Boolean  @default(true) // Activar generación automática
+  ncfType         String   @default("B01") // Tipo de NCF por defecto (B01, B02, B14, B15)
+  ncfSequence     Int      @default(1) // Secuencia actual del NCF
+  ncfPrefix       String   @default("B01") // Prefijo del NCF (ej: B0100000001)
+  ncfRangeStart   String?  // Rango inicial autorizado por DGII (ej: B0100000001)
+  ncfRangeEnd     String?  // Rango final autorizado por DGII (ej: B0100001000)
+  
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 

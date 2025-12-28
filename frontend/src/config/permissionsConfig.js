@@ -70,6 +70,12 @@ export const PERMISSIONS_HIERARCHY = {
         name: 'Tasa de Envío', 
         route: '/admin/shipping',
         description: 'Configurar costos de envío'
+      },
+      { 
+        id: 'admin.company', 
+        name: 'Datos de la Empresa', 
+        route: '/admin/company',
+        description: 'Configurar información de la empresa para facturas'
       }
     ]
   },
