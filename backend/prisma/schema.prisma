@@ -24,18 +24,18 @@ model User {
 }
 
 model Medicine {
-  id                Int                      @id @default(autoincrement())
-  codigo            String                   @unique
+  id                Int               @id @default(autoincrement())
+  codigo            String            @unique
   nombreComercial   String
   nombreGenerico    String
-  formaFarmaceutica FormaFarmaceutica        @default(comprimidos)
-  concentracion     Concentracion            @default(mg)
-  presentacion      Presentacion             @default(blister)
+  formaFarmaceutica FormaFarmaceutica @default(comprimidos)
+  concentracion     Concentracion     @default(mg)
+  presentacion      Presentacion      @default(blister)
   fechaVencimiento  DateTime?
-  pesoKg            Decimal                  @default(0.000) @db.Decimal(10, 3)
-  stock             Int                      @default(0)
-  created_at        DateTime                 @default(now())
-  updated_at        DateTime                 @updatedAt
+  pesoKg            Decimal           @default(0.000) @db.Decimal(10, 3)
+  stock             Int               @default(0)
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @updatedAt
   parametros        MedicineParam?
   precios           MedicinePrice[]
   preciosVentaMN    MedicinePriceVentaMN[]
@@ -76,7 +76,7 @@ model MedicinePriceVentaMN {
   updated_at     DateTime @updatedAt
   medicine       Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
 
-  @@index([medicineId], map: "medicine_prices_venta_mn_medicineId_fkey")
+  @@index([medicineId])
   @@map("medicine_prices_venta_mn")
 }
 

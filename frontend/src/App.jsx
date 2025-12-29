@@ -12,7 +12,8 @@ import Medicines from './pages/Medicines';
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
 import Receipts from './pages/Receipts';
-import Sales from './pages/Sales';
+import SalesMN from './pages/SalesMN';
+import SalesUSD from './pages/SalesUSD';
 import ExchangeRates from './pages/ExchangeRates';
 import ExchangeRatesMN from './pages/ExchangeRatesMN';
 import ShippingRates from './pages/ShippingRates';
@@ -212,10 +213,18 @@ export default function App() {
             </PrivateRoute>
           } />
           
-          <Route path="/sales" element={
+          <Route path="/sales/mn" element={
             <PrivateRoute requiredPermission="sales">
               <ProtectedLayout>
-                <Sales />
+                <SalesMN />
+              </ProtectedLayout>
+            </PrivateRoute>
+          } />
+
+          <Route path="/sales/usd" element={
+            <PrivateRoute requiredPermission="sales">
+              <ProtectedLayout>
+                <SalesUSD />
               </ProtectedLayout>
             </PrivateRoute>
           } />

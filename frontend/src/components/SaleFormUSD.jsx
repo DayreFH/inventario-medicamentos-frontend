@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/http';
 
-const SaleFormAdvanced = () => {
+const SaleFormUSD = () => {
   // Estados para tasas y configuración
   const [exchangeRate, setExchangeRate] = useState({ rate: 62.83 });
   const [shippingRate, setShippingRate] = useState({ internationalRate: 10 });
@@ -15,6 +15,8 @@ const SaleFormAdvanced = () => {
   // Estados para selección
   const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
+  const [selectedPrice, setSelectedPrice] = useState(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('efectivo');
   
   // Estados para filtros
@@ -26,8 +28,12 @@ const SaleFormAdvanced = () => {
   const [currentItem, setCurrentItem] = useState({
     quantity: 0,
     saleDate: new Date().toISOString().slice(0, 10),
-    precioVentaMN: 0
+    precioCompraDOP: 0
   });
+  
+  // Estados para proveedores y precios disponibles
+  const [availableSuppliers, setAvailableSuppliers] = useState([]);
+  const [availablePrices, setAvailablePrices] = useState([]);
   
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -105,34 +111,16 @@ const SaleFormAdvanced = () => {
   };
 
   const loadInitialData = async () => {
-    await Promise.all([
-      loadMedicines(),
-      loadCustomers(),
-      loadExchangeRate(),
-      loadShippingRate()
-    ]);
-  };
-
-  const loadMedicines = async () => {
     try {
-      const response = await api.get('/medicines?limit=1000');
-      // El endpoint devuelve { data: [...], pagination: {...} }
-      const medicines = response.data.data || response.data || [];
-      setMedicines(medicines);
-      console.log('✅ Medicamentos cargados:', medicines.length);
+      setLoading(true);
+      await loadExchangeRate();
+      await loadShippingRate();
+      await loadMedicines();
+      await loadCustomers();
     } catch (error) {
-      console.error('❌ Error cargando medicamentos:', error);
-      setMedicines([]);
-    }
-  };
-
-  const loadCustomers = async () => {
-    try {
-      const { data } = await api.get('/customers');
-      setCustomers(data);
-    } catch (error) {
-      console.error('Error cargando clientes:', error);
-      setCustomers([]);
+      console.error('Error cargando datos iniciales:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -156,6 +144,29 @@ const SaleFormAdvanced = () => {
     }
   };
 
+  const loadMedicines = async () => {
+    try {
+      const response = await api.get('/medicines?limit=1000');
+      // El endpoint devuelve { data: [...], pagination: {...} }
+      const medicines = response.data.data || response.data || [];
+      setMedicines(medicines);
+      console.log('✅ Medicamentos cargados:', medicines.length);
+    } catch (error) {
+      console.error('❌ Error cargando medicamentos:', error);
+      setMedicines([]); // Asegurar que sea array
+    }
+  };
+
+  const loadCustomers = async () => {
+    try {
+      const { data } = await api.get('/customers');
+      setCustomers(data);
+    } catch (error) {
+      console.error('Error cargando clientes:', error);
+      setCustomers([]); // Asegurar que sea array
+    }
+  };
+
   const loadPaymentMethods = async () => {
     try {
       const { data } = await api.get('/payment-methods');
@@ -170,24 +181,65 @@ const SaleFormAdvanced = () => {
 
   const handleMedicineSelect = async (medicine) => {
     setSelectedMedicine(medicine);
+    setSelectedSupplier(null);
+    setSelectedPrice(null);
+    setAvailableSuppliers([]);
+    setAvailablePrices([]);
 
     if (!medicine) return;
 
-    // Cargar precio de venta MN activo desde BD
-    const precioVentaMNActivo = medicine.preciosVentaMN?.find(p => p.activo);
-    
-    if (!precioVentaMNActivo) {
-      alert('⚠️ Este medicamento no tiene un Precio de Venta MN activo.\n\nPor favor, configure un precio en: Gestión de Datos → Medicamentos → Precios');
-      setSelectedMedicine(null);
-      return;
+    // Cargar proveedores que tienen precios para este medicamento
+    try {
+      const { data } = await api.get(`/api/medicines/${medicine.id}`);
+      const preciosActivos = (data.precios || []).filter(p => p.activo);
+      
+      if (preciosActivos.length === 0) {
+        alert('⚠️ Este medicamento no tiene precios con proveedores. Configure en: Gestión de Datos → Medicamentos → Precios');
+        return;
+      }
+
+      // Obtener proveedores únicos
+      const suppliersMap = new Map();
+      preciosActivos.forEach(precio => {
+        if (precio.supplier) {
+          suppliersMap.set(precio.supplier.id, precio.supplier);
+        }
+      });
+
+      setAvailableSuppliers(Array.from(suppliersMap.values()));
+    } catch (error) {
+      console.error('Error cargando proveedores:', error);
     }
-    
-    const precioVentaMN = parseFloat(precioVentaMNActivo.precioVentaMN);
-    
-    setCurrentItem(prev => ({ 
-      ...prev, 
-      precioVentaMN
-    }));
+  };
+
+  const handleSupplierSelect = async (supplierId) => {
+    setSelectedSupplier(supplierId);
+    setSelectedPrice(null);
+    setAvailablePrices([]);
+
+    if (!supplierId || !selectedMedicine) return;
+
+    // Cargar precios del proveedor seleccionado para este medicamento
+    try {
+      const { data } = await api.get(`/api/medicines/${selectedMedicine.id}`);
+      const preciosDelProveedor = (data.precios || []).filter(
+        p => p.activo && p.supplierId === parseInt(supplierId)
+      );
+      setAvailablePrices(preciosDelProveedor);
+    } catch (error) {
+      console.error('Error cargando precios:', error);
+    }
+  };
+
+  const handlePriceSelect = (priceId) => {
+    const precio = availablePrices.find(p => p.id === parseInt(priceId));
+    setSelectedPrice(precio);
+    if (precio) {
+      setCurrentItem(prev => ({
+        ...prev,
+        precioCompraDOP: parseFloat(precio.precioCompraUnitario)
+      }));
+    }
   };
 
   const handleCustomerSelect = (customer) => {
@@ -195,7 +247,7 @@ const SaleFormAdvanced = () => {
   };
 
   const addItemToSale = () => {
-    if (!selectedMedicine || !selectedCustomer) {
+    if (!selectedMedicine || !selectedCustomer || !selectedPrice) {
       alert('Por favor complete todos los campos requeridos');
       return;
     }
@@ -207,11 +259,6 @@ const SaleFormAdvanced = () => {
 
     if (currentItem.quantity > selectedMedicine.stock) {
       alert(`Stock insuficiente. Disponible: ${selectedMedicine.stock}`);
-      return;
-    }
-
-    if (!currentItem.precioVentaMN || currentItem.precioVentaMN <= 0) {
-      alert('El medicamento no tiene un Precio de Venta MN válido');
       return;
     }
 
@@ -228,65 +275,53 @@ const SaleFormAdvanced = () => {
         return;
       }
 
-      // Obtener precio de compra MAYOR del medicamento (desde precios activos)
-      const activePrices = selectedMedicine.precios?.filter(p => p.activo) || [];
-      const precioCompraDOP = activePrices.length > 0 
-        ? Math.max(...activePrices.map(p => parseFloat(p.precioCompraUnitario)))
-        : 0;
-      
       const pesoKg = parseFloat(selectedMedicine.pesoKg) || 0;
-      
-      // Costo unitario en USD: (Precio de Compra DOP ÷ Tasa de cambio DOP-USD) + (Peso KG × Tasa de envío internacional)
+      const precioCompraDOP = currentItem.precioCompraDOP;
+
+      // Costo/u USD = (Precio Compra DOP / TC DOP-USD) + (Peso Kg × Tasa Envío)
       const costoUnitarioUSD = (precioCompraDOP / exchangeRate.rate) + (pesoKg * (shippingRate?.internationalRate || 0));
-      
-      // Costo/u MN = Costo/u USD × TC MN
-      const costoUnitarioMN = costoUnitarioUSD * exchangeRateMN;
-      
-      // Precio de Venta = desde BD
-      const precioVentaMN = currentItem.precioVentaMN;
-      
-      // Subtotal Costo MN = Costo/u MN × Cantidad
-      const subtotalCostoMN = costoUnitarioMN * newTotalQuantity;
-      
-      // Subtotal de Venta = Precio de Venta × Cantidad
-      const subtotalVenta = precioVentaMN * newTotalQuantity;
+
+      // Precio X Kg Cuba
+      const presentacionUpper = selectedMedicine.presentacion?.toUpperCase() || '';
+      const esFrascoOTubo = presentacionUpper.includes('FRASCO') || presentacionUpper.includes('TUBO');
+      const precioXKgCuba = esFrascoOTubo ? pesoKg * 5 : pesoKg * 15;
+
+      // Precio de Venta USD = Costo/u USD + Precio X Kg Cuba
+      const precioVentaUSD = costoUnitarioUSD + precioXKgCuba;
+
+      // Subtotal USD = Precio de Venta USD × Cantidad
+      const subtotalUSD = precioVentaUSD * newTotalQuantity;
 
       const updatedItems = [...saleItems];
       updatedItems[existingItemIndex] = {
         ...existingItem,
         quantity: newTotalQuantity,
+        precioCompraDOP,
         costoUnitarioUSD,
-        costoUnitarioMN,
-        precioVentaMN,
-        subtotalCostoMN,
-        subtotalVenta
+        precioXKgCuba,
+        precioVentaUSD,
+        subtotalUSD
       };
 
       setSaleItems(updatedItems);
     } else {
       // Nuevo item
-      // Obtener precio de compra MAYOR del medicamento (desde precios activos)
-      const activePrices = selectedMedicine.precios?.filter(p => p.activo) || [];
-      const precioCompraDOP = activePrices.length > 0 
-        ? Math.max(...activePrices.map(p => parseFloat(p.precioCompraUnitario)))
-        : 0;
-      
       const pesoKg = parseFloat(selectedMedicine.pesoKg) || 0;
-      
-      // Costo unitario en USD: (Precio de Compra DOP ÷ Tasa de cambio DOP-USD) + (Peso KG × Tasa de envío internacional)
+      const precioCompraDOP = currentItem.precioCompraDOP;
+
+      // Costo/u USD = (Precio Compra DOP / TC DOP-USD) + (Peso Kg × Tasa Envío)
       const costoUnitarioUSD = (precioCompraDOP / exchangeRate.rate) + (pesoKg * (shippingRate?.internationalRate || 0));
-      
-      // Costo/u MN = Costo/u USD × TC MN
-      const costoUnitarioMN = costoUnitarioUSD * exchangeRateMN;
-      
-      // Precio de Venta = desde BD
-      const precioVentaMN = currentItem.precioVentaMN;
-      
-      // Subtotal Costo MN = Costo/u MN × Cantidad
-      const subtotalCostoMN = costoUnitarioMN * currentItem.quantity;
-      
-      // Subtotal de Venta = Precio de Venta × Cantidad
-      const subtotalVenta = precioVentaMN * currentItem.quantity;
+
+      // Precio X Kg Cuba
+      const presentacionUpper = selectedMedicine.presentacion?.toUpperCase() || '';
+      const esFrascoOTubo = presentacionUpper.includes('FRASCO') || presentacionUpper.includes('TUBO');
+      const precioXKgCuba = esFrascoOTubo ? pesoKg * 5 : pesoKg * 15;
+
+      // Precio de Venta USD = Costo/u USD + Precio X Kg Cuba
+      const precioVentaUSD = costoUnitarioUSD + precioXKgCuba;
+
+      // Subtotal USD = Precio de Venta USD × Cantidad
+      const subtotalUSD = precioVentaUSD * currentItem.quantity;
 
       const newItem = {
         id: Date.now(),
@@ -294,21 +329,26 @@ const SaleFormAdvanced = () => {
         nombreComercial: selectedMedicine.nombreComercial,
         presentacion: selectedMedicine.presentacion,
         stock: selectedMedicine.stock,
+        pesoKg: parseFloat(pesoKg) || 0,
 
         // Datos del cliente
         customerId: selectedCustomer.id,
         customerName: selectedCustomer.name,
 
+        // Datos del proveedor y precio
+        supplierId: selectedPrice.supplierId,
+        priceId: selectedPrice.id,
+        precioCompraDOP,
+
         // Cálculos
         quantity: currentItem.quantity,
         costoUnitarioUSD,
-        costoUnitarioMN,
-        precioVentaMN,
-        subtotalCostoMN,
-        subtotalVenta,
+        precioXKgCuba,
+        precioVentaUSD,
+        subtotalUSD,
 
-        // Fecha
-        saleDate: currentItem.saleDate
+        saleDate: currentItem.saleDate,
+        paymentMethod: selectedPaymentMethod
       };
 
       setSaleItems([...saleItems, newItem]);
@@ -318,76 +358,62 @@ const SaleFormAdvanced = () => {
     setCurrentItem({
       quantity: 0,
       saleDate: new Date().toISOString().slice(0, 10),
-      precioVentaMN: 0
+      precioCompraDOP: 0
     });
     setSelectedMedicine(null);
-    setSelectedCustomer(null);
+    setSelectedSupplier(null);
+    setSelectedPrice(null);
+    setAvailableSuppliers([]);
+    setAvailablePrices([]);
     setMedicineFilter('');
-    setCustomerFilter('');
   };
 
   const removeItem = (itemId) => {
     setSaleItems(saleItems.filter(item => item.id !== itemId));
   };
 
+  const calculateTotalUSD = () => {
+    return saleItems.reduce((sum, item) => sum + item.subtotalUSD, 0);
+  };
+
   const handleSaveSale = async () => {
     if (saleItems.length === 0) {
-      alert('No hay items en la venta');
+      alert('Debe agregar al menos un medicamento');
       return;
     }
 
-    if (!exchangeRateMN) {
-      alert('⚠️ No se ha configurado la Tasa de Cambio MN.\n\nPor favor, configure la tasa en CONFIGURACIÓN > Tasas de Cambio MN antes de guardar la venta.');
-      return;
-    }
-
-    setLoading(true);
     try {
+      setLoading(true);
+
       const saleData = {
-        items: saleItems.map(item => ({
-          medicineId: item.medicineId,
-          customerId: item.customerId,
-          quantity: item.quantity,
-          precio_venta_mn: item.precioVentaMN,
-          costo_unitario_usd: item.costoUnitarioUSD
-        })),
+        customerId: saleItems[0].customerId,
         date: saleItems[0].saleDate,
         paymentMethod: selectedPaymentMethod,
-        tipoVenta: 'MN'
+        tipoVenta: 'USD',
+        items: saleItems.map(item => ({
+          medicineId: item.medicineId,
+          qty: item.quantity,
+          costo_unitario_usd: item.costoUnitarioUSD,
+          precio_propuesto_usd: item.precioVentaUSD,
+          supplierId: item.supplierId
+        }))
       };
 
-      await api.post('/api/sales', saleData);
-      
-      alert('✅ Venta guardada exitosamente');
-      
+      await api.post('/sales', saleData);
+
+      alert('✅ Venta USD registrada exitosamente');
+
       // Limpiar formulario
       setSaleItems([]);
-      setCurrentItem({
-        quantity: 0,
-        saleDate: new Date().toISOString().slice(0, 10),
-        precioVentaMN: 0
-      });
-      setSelectedMedicine(null);
       setSelectedCustomer(null);
-      setMedicineFilter('');
       setCustomerFilter('');
-      
-      // Recargar medicamentos para actualizar stock
-      await loadMedicines();
+      await loadMedicines(); // Recargar para actualizar stock
     } catch (error) {
-      console.error('Error saving sale:', error);
+      console.error('Error guardando venta:', error);
       alert(`Error al guardar venta: ${error.response?.data?.detail || error.message}`);
     } finally {
       setLoading(false);
     }
-  };
-
-  const calculateTotalCostoMN = () => {
-    return saleItems.reduce((sum, item) => sum + (item.subtotalCostoMN || 0), 0);
-  };
-
-  const calculateTotalVenta = () => {
-    return saleItems.reduce((sum, item) => sum + (item.subtotalVenta || 0), 0);
   };
 
   const filteredMedicines = (medicines || []).filter(med =>
@@ -421,7 +447,7 @@ const SaleFormAdvanced = () => {
             color: '#2c3e50',
             fontWeight: 'bold'
           }}>
-            Cargando Salidas MN...
+            Cargando Salidas USD...
           </div>
           <div style={{
             fontSize: '14px',
@@ -455,7 +481,7 @@ const SaleFormAdvanced = () => {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <span>💵 SALIDAS MN</span>
+          <span>💵 SALIDAS USD</span>
           <span>T.C. DOP-USD: {exchangeRate?.rate || 'Cargando...'}</span>
           <span>
             Envío: ${shippingRate?.internationalRate || '0'}
@@ -502,7 +528,7 @@ const SaleFormAdvanced = () => {
           color: '#2c3e50',
           fontSize: '18px'
         }}>
-          Salida de Medicamentos (MN)
+          Salida de Medicamentos (USD)
         </h2>
 
         {/* Formulario */}
@@ -597,31 +623,68 @@ const SaleFormAdvanced = () => {
             </select>
           </div>
 
-          {/* Precio de Venta MN (Read-only) */}
+          {/* Proveedor */}
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: '500' }}>
-              Precio Venta MN *
+              Proveedor *
             </label>
-            <input
-              type="number"
-              value={currentItem.precioVentaMN || ''}
-              readOnly
-              placeholder="Auto"
+            <select
+              value={selectedSupplier || ''}
+              onChange={(e) => handleSupplierSelect(e.target.value)}
+              disabled={!selectedMedicine || availableSuppliers.length === 0}
+              style={{
+                width: '100%',
+                padding: '6px 8px',
+                border: availableSuppliers.length === 0 && selectedMedicine ? '2px solid #dc3545' : '1px solid #ccc',
+                borderRadius: '4px',
+                fontSize: '12px',
+                backgroundColor: !selectedMedicine || availableSuppliers.length === 0 ? '#f5f5f5' : 'white',
+                marginTop: '28px'
+              }}
+            >
+              <option value="">Seleccionar...</option>
+              {availableSuppliers.map(supplier => (
+                <option key={supplier.id} value={supplier.id}>
+                  {supplier.name}
+                </option>
+              ))}
+            </select>
+            {selectedMedicine && availableSuppliers.length === 0 && (
+              <div style={{ fontSize: '9px', color: '#dc3545', marginTop: '2px', fontWeight: '500' }}>
+                ⚠️ Sin precios
+              </div>
+            )}
+          </div>
+
+          {/* Precio de Compra */}
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: '500' }}>
+              Precio Compra *
+            </label>
+            <select
+              value={selectedPrice?.id || ''}
+              onChange={(e) => handlePriceSelect(e.target.value)}
+              disabled={!selectedSupplier || availablePrices.length === 0}
               style={{
                 width: '100%',
                 padding: '6px 8px',
                 border: '1px solid #ccc',
                 borderRadius: '4px',
                 fontSize: '12px',
-                backgroundColor: '#f5f5f5',
-                color: '#28a745',
-                fontWeight: 'bold',
+                backgroundColor: !selectedSupplier ? '#f5f5f5' : 'white',
                 marginTop: '28px'
               }}
-            />
+            >
+              <option value="">Seleccionar...</option>
+              {availablePrices.map(precio => (
+                <option key={precio.id} value={precio.id}>
+                  ${parseFloat(precio.precioCompraUnitario).toFixed(2)}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Stock disponible */}
+          {/* Stock y Cantidad */}
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: '500' }}>
               Stock disponible
@@ -639,13 +702,9 @@ const SaleFormAdvanced = () => {
                 backgroundColor: selectedMedicine && selectedMedicine.stock > 0 ? '#d4edda' : '#f8f9fa',
                 color: selectedMedicine && selectedMedicine.stock > 0 ? '#155724' : '#6c757d',
                 fontWeight: selectedMedicine && selectedMedicine.stock > 0 ? 'bold' : 'normal',
-                marginTop: '28px'
+                marginBottom: '6px'
               }}
             />
-          </div>
-
-          {/* Cantidad */}
-          <div>
             <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: '500' }}>
               Cantidad
             </label>
@@ -660,8 +719,7 @@ const SaleFormAdvanced = () => {
                 padding: '6px 8px',
                 border: '1px solid #ccc',
                 borderRadius: '4px',
-                fontSize: '12px',
-                marginTop: '28px'
+                fontSize: '12px'
               }}
               placeholder="0"
             />
@@ -772,7 +830,7 @@ const SaleFormAdvanced = () => {
           color: '#1e293b',
           flexShrink: 0
         }}>
-          Medicamentos a Salir (MN)
+          Medicamentos a Salir (USD)
         </div>
         
         <div style={{ flex: 1, overflow: 'auto' }}>
@@ -788,17 +846,16 @@ const SaleFormAdvanced = () => {
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', width: '150px' }}>Nombre Comercial</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', width: '120px' }}>Presentación</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '60px' }}>Cantidad</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '100px' }}>Costo/u MN</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '100px' }}>Precio Venta</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '120px' }}>SubTotal Costo MN</th>
-                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '120px' }}>Subtotal Venta</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '80px' }}>Peso Kg</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '100px' }}>Precio de Venta USD</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '100px' }}>Subtotal USD</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '60px' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {saleItems.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ 
+                  <td colSpan="7" style={{ 
                     padding: '40px', 
                     textAlign: 'center', 
                     color: '#6c757d',
@@ -817,16 +874,13 @@ const SaleFormAdvanced = () => {
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }} title={item.presentacion}>{item.presentacion}</td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'center' }}>{item.quantity}</td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'right', color: '#6c757d' }}>
-                      MN {item.costoUnitarioMN?.toFixed(2) || '0.00'}
+                      {(item.pesoKg || 0).toFixed(3)} kg
                     </td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontWeight: 'bold', color: '#007bff', fontSize: '12px', textAlign: 'right' }}>
-                      MN {item.precioVentaMN?.toFixed(2) || '0.00'}
-                    </td>
-                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'right', color: '#e67e22' }}>
-                      MN {item.subtotalCostoMN?.toFixed(2) || '0.00'}
+                      ${item.precioVentaUSD.toFixed(2)}
                     </td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontWeight: 'bold', color: '#28a745', fontSize: '12px', textAlign: 'right' }}>
-                      MN {item.subtotalVenta?.toFixed(2) || '0.00'}
+                      ${item.subtotalUSD.toFixed(2)}
                     </td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', textAlign: 'center' }}>
                       <button
@@ -864,10 +918,7 @@ const SaleFormAdvanced = () => {
             fontWeight: 'bold',
             flexShrink: 0
           }}>
-            <div style={{ display: 'flex', gap: '30px' }}>
-              <span style={{ color: '#e67e22' }}>Total Costo MN: MN {calculateTotalCostoMN().toFixed(2)}</span>
-              <span style={{ color: '#28a745' }}>Total Venta: MN {calculateTotalVenta().toFixed(2)}</span>
-            </div>
+            <span style={{ color: '#28a745' }}>Total USD: ${calculateTotalUSD().toFixed(2)}</span>
             <span>Items: {saleItems.length}</span>
           </div>
         )}
@@ -876,4 +927,5 @@ const SaleFormAdvanced = () => {
   );
 };
 
-export default SaleFormAdvanced;
+export default SaleFormUSD;
+

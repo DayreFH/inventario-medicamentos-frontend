@@ -42,7 +42,8 @@ const Navigation = () => {
       icon: '🔄',
       children: [
         { title: 'Entradas', path: '/receipts' },
-        { title: 'Salidas', path: '/sales' },
+        { title: 'Salidas MN', path: '/sales/mn' },
+        { title: 'Salidas USD', path: '/sales/usd' },
         { title: 'Facturación', path: '/operaciones/facturacion' }
       ]
     },
