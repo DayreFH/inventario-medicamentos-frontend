@@ -55,6 +55,9 @@ router.get('/', async (req, res) => {
               }
             }
           },
+          preciosVentaMN: {
+            orderBy: { created_at: 'desc' }
+          },
           parametros: true
         },
         orderBy: { nombreComercial: 'asc' },
@@ -100,6 +103,9 @@ router.get('/:id', async (req, res) => {
               }
             }
           }
+        },
+        preciosVentaMN: {
+          orderBy: { created_at: 'desc' }
         },
         parametros: true
       }
@@ -284,6 +290,152 @@ router.delete('/precios/:precioId', async (req, res) => {
     res.status(200).json({ message: 'Precio desactivado exitosamente' });
   } catch (e) {
     res.status(400).json({ error: 'No se pudo desactivar el precio', detail: e.message });
+  }
+});
+
+/**
+ * PUT /api/medicines/precios/:precioId/reactivar
+ * Reactiva un precio de compra inactivo
+ * Nota: Para precios de compra DOP, pueden haber múltiples activos
+ * (uno por proveedor), por lo que NO desactivamos otros al reactivar
+ */
+router.put('/precios/:precioId/reactivar', async (req, res) => {
+  const precioId = Number(req.params.precioId);
+  
+  try {
+    // Simplemente reactivar el precio seleccionado
+    const precioReactivado = await prisma.MedicinePrice.update({
+      where: { id: precioId },
+      data: { activo: true },
+      include: {
+        supplier: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+    
+    res.status(200).json({ 
+      message: 'Precio de compra reactivado exitosamente',
+      precio: precioReactivado
+    });
+  } catch (e) {
+    res.status(400).json({ 
+      error: 'No se pudo reactivar el precio de compra', 
+      detail: e.message 
+    });
+  }
+});
+
+/**
+ * POST /api/medicines/:id/precios-venta-mn
+ * Agrega un nuevo precio de venta en MN
+ * Al agregar uno nuevo, desactiva el anterior activo
+ */
+router.post('/:id/precios-venta-mn', async (req, res) => {
+  const id = Number(req.params.id);
+  const { precioVentaMN } = req.body;
+  
+  try {
+    // Validar que el precio sea válido
+    const precio = normPrice(precioVentaMN);
+    if (precio <= 0) {
+      return res.status(400).json({ 
+        error: 'El precio de venta MN debe ser mayor a 0' 
+      });
+    }
+
+    // Desactivar el precio activo anterior (solo puede haber 1 activo)
+    await prisma.MedicinePriceVentaMN.updateMany({
+      where: {
+        medicineId: id,
+        activo: true
+      },
+      data: { activo: false }
+    });
+    
+    // Crear el nuevo precio
+    const nuevoPrecio = await prisma.MedicinePriceVentaMN.create({
+      data: {
+        medicineId: id,
+        precioVentaMN: precio,
+        activo: true
+      }
+    });
+    
+    res.status(201).json(nuevoPrecio);
+  } catch (e) {
+    res.status(400).json({ 
+      error: 'No se pudo agregar el precio de venta MN', 
+      detail: e.message 
+    });
+  }
+});
+
+/**
+ * DELETE /api/medicines/precios-venta-mn/:precioId
+ * Desactiva un precio de venta MN
+ */
+router.delete('/precios-venta-mn/:precioId', async (req, res) => {
+  const precioId = Number(req.params.precioId);
+  try {
+    await prisma.MedicinePriceVentaMN.update({
+      where: { id: precioId },
+      data: { activo: false }
+    });
+    res.status(200).json({ message: 'Precio de venta MN desactivado exitosamente' });
+  } catch (e) {
+    res.status(400).json({ 
+      error: 'No se pudo desactivar el precio de venta MN', 
+      detail: e.message 
+    });
+  }
+});
+
+/**
+ * PUT /api/medicines/precios-venta-mn/:precioId/reactivar
+ * Reactiva un precio de venta MN inactivo
+ * Al reactivar uno, desactiva automáticamente el que esté activo
+ */
+router.put('/precios-venta-mn/:precioId/reactivar', async (req, res) => {
+  const precioId = Number(req.params.precioId);
+  
+  try {
+    // Primero, obtener el precio que se quiere reactivar para saber su medicineId
+    const precioToReactivate = await prisma.MedicinePriceVentaMN.findUnique({
+      where: { id: precioId }
+    });
+    
+    if (!precioToReactivate) {
+      return res.status(404).json({ error: 'Precio no encontrado' });
+    }
+    
+    // Desactivar todos los precios activos de ese medicamento
+    await prisma.MedicinePriceVentaMN.updateMany({
+      where: {
+        medicineId: precioToReactivate.medicineId,
+        activo: true
+      },
+      data: { activo: false }
+    });
+    
+    // Reactivar el precio seleccionado
+    const precioReactivado = await prisma.MedicinePriceVentaMN.update({
+      where: { id: precioId },
+      data: { activo: true }
+    });
+    
+    res.status(200).json({ 
+      message: 'Precio de venta MN reactivado exitosamente',
+      precio: precioReactivado
+    });
+  } catch (e) {
+    res.status(400).json({ 
+      error: 'No se pudo reactivar el precio de venta MN', 
+      detail: e.message 
+    });
   }
 });
 

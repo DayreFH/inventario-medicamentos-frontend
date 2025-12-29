@@ -3,14 +3,25 @@ import api from '../../api/http';
 
 const PreciosTab = ({ medicines, onRefresh, loading }) => {
   const [selectedMedicine, setSelectedMedicine] = useState('');
-  const [precioForm, setPrecioForm] = useState({
+  
+  // Estados para Precio de Compra DOP
+  const [precioCompraDOPForm, setPrecioCompraDOPForm] = useState({
     precioCompraUnitario: '',
     supplierId: ''
   });
-  const [precios, setPrecios] = useState([]);
+  const [preciosCompraDOP, setPreciosCompraDOP] = useState([]);
+  const [savingCompraDOP, setSavingCompraDOP] = useState(false);
+  
+  // Estados para Precio de Venta MN
+  const [precioVentaMNForm, setPrecioVentaMNForm] = useState({
+    precioVentaMN: ''
+  });
+  const [preciosVentaMN, setPreciosVentaMN] = useState([]);
+  const [savingVentaMN, setSavingVentaMN] = useState(false);
+  
   const [suppliers, setSuppliers] = useState([]);
-  const [saving, setSaving] = useState(false);
 
+  // Cargar proveedores
   const loadSuppliers = async () => {
     try {
       const { data } = await api.get('/suppliers');
@@ -24,58 +35,142 @@ const PreciosTab = ({ medicines, onRefresh, loading }) => {
     loadSuppliers();
   }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!selectedMedicine) return;
-    
-    setSaving(true);
-    try {
-      await api.post(`/medicines/${selectedMedicine}/precios`, {
-        precioCompraUnitario: precioForm.precioCompraUnitario,
-        supplierId: precioForm.supplierId || null
-      });
-      
-      setPrecioForm({
-        precioCompraUnitario: '',
-        supplierId: ''
-      });
-      loadPrecios();
-    } catch (error) {
-      const msg = error?.response?.data?.detail || error?.response?.data?.error || 'Error al guardar precio';
-      alert(msg);
-    } finally {
-      setSaving(false);
-    }
-  };
-
+  // Cargar precios cuando se selecciona un medicamento
   const loadPrecios = async () => {
     if (!selectedMedicine) return;
     try {
       const { data } = await api.get(`/medicines/${selectedMedicine}`);
-      setPrecios(data.precios || []);
+      setPreciosCompraDOP(data.precios || []);
+      setPreciosVentaMN(data.preciosVentaMN || []);
     } catch (error) {
       console.error('Error cargando precios:', error);
-    }
-  };
-
-  const handleDelete = async (precioId) => {
-    if (!window.confirm('¿Está seguro de que desea desactivar este precio?')) {
-      return;
-    }
-    
-    try {
-      await api.delete(`/medicines/precios/${precioId}`);
-      loadPrecios(); // Recargar la lista
-      alert('Precio desactivado exitosamente');
-    } catch (error) {
-      const msg = error?.response?.data?.detail || error?.response?.data?.error || 'Error al desactivar precio';
-      alert(msg);
     }
   };
 
   useEffect(() => {
     loadPrecios();
   }, [selectedMedicine]);
+
+  // ============================================
+  // HANDLERS PARA PRECIO DE COMPRA DOP
+  // ============================================
+  const handleSubmitCompraDOP = async (e) => {
+    e.preventDefault();
+    if (!selectedMedicine) return;
+    
+    setSavingCompraDOP(true);
+    try {
+      await api.post(`/medicines/${selectedMedicine}/precios`, {
+        precioCompraUnitario: precioCompraDOPForm.precioCompraUnitario,
+        supplierId: precioCompraDOPForm.supplierId || null
+      });
+      
+      setPrecioCompraDOPForm({
+        precioCompraUnitario: '',
+        supplierId: ''
+      });
+      loadPrecios();
+      alert('Precio de compra agregado exitosamente');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || error?.response?.data?.error || 'Error al guardar precio de compra';
+      alert(msg);
+    } finally {
+      setSavingCompraDOP(false);
+    }
+  };
+
+  const handleDeleteCompraDOP = async (precioId) => {
+    if (!window.confirm('¿Desactivar este precio de compra?')) {
+      return;
+    }
+    
+    try {
+      await api.delete(`/medicines/precios/${precioId}`);
+      loadPrecios();
+      alert('Precio de compra desactivado');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || error?.response?.data?.error || 'Error al desactivar';
+      alert(msg);
+    }
+  };
+
+  const handleReactivarCompraDOP = async (precioId) => {
+    if (!window.confirm('¿Reactivar este precio de compra?')) {
+      return;
+    }
+    
+    try {
+      await api.put(`/medicines/precios/${precioId}/reactivar`);
+      loadPrecios();
+      alert('Precio de compra reactivado exitosamente');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || error?.response?.data?.error || 'Error al reactivar';
+      alert(msg);
+    }
+  };
+
+  // ============================================
+  // HANDLERS PARA PRECIO DE VENTA MN
+  // ============================================
+  const handleSubmitVentaMN = async (e) => {
+    e.preventDefault();
+    if (!selectedMedicine) return;
+    
+    // Validación: el precio debe ser mayor a 0
+    const precio = parseFloat(precioVentaMNForm.precioVentaMN);
+    if (isNaN(precio) || precio <= 0) {
+      alert('El precio de venta MN debe ser mayor a 0');
+      return;
+    }
+    
+    setSavingVentaMN(true);
+    try {
+      await api.post(`/medicines/${selectedMedicine}/precios-venta-mn`, {
+        precioVentaMN: precioVentaMNForm.precioVentaMN
+      });
+      
+      setPrecioVentaMNForm({
+        precioVentaMN: ''
+      });
+      loadPrecios();
+      alert('Precio de venta MN agregado exitosamente');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || error?.response?.data?.error || 'Error al guardar precio de venta MN';
+      alert(msg);
+    } finally {
+      setSavingVentaMN(false);
+    }
+  };
+
+  const handleDeleteVentaMN = async (precioId) => {
+    if (!window.confirm('¿Desactivar este precio de venta?')) {
+      return;
+    }
+    
+    try {
+      await api.delete(`/medicines/precios-venta-mn/${precioId}`);
+      loadPrecios();
+      alert('Precio de venta MN desactivado');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || error?.response?.data?.error || 'Error al desactivar';
+      alert(msg);
+    }
+  };
+
+  const handleReactivarVentaMN = async (precioId) => {
+    if (!window.confirm('¿Reactivar este precio de venta? El precio activo actual será desactivado.')) {
+      return;
+    }
+    
+    try {
+      await api.put(`/medicines/precios-venta-mn/${precioId}/reactivar`);
+      loadPrecios();
+      alert('Precio de venta MN reactivado exitosamente');
+    } catch (error) {
+      const msg = error?.response?.data?.detail || error?.response?.data?.error || 'Error al reactivar';
+      alert(msg);
+    }
+  };
 
   return (
     <div style={{ 
@@ -84,198 +179,412 @@ const PreciosTab = ({ medicines, onRefresh, loading }) => {
       overflow: 'auto',
       minHeight: '0'
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', padding: '0 24px' }}>
-        {/* Formulario de precios */}
-        <div>
-          <h3 style={{ color: '#495057', marginBottom: '16px' }}>
-            Gestión de Precios
-          </h3>
-          
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#495057' }}>
-              Seleccionar Medicamento
-            </label>
-            <select
-              value={selectedMedicine}
-              onChange={(e) => setSelectedMedicine(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                border: '1px solid #ced4da',
-                borderRadius: '4px',
-                fontSize: '14px',
-                backgroundColor: 'white'
-              }}
-            >
-              <option value="">Seleccionar medicamento...</option>
-              {medicines.map(medicine => (
-                <option key={medicine.id} value={medicine.id}>
-                  {medicine.codigo} - {medicine.nombreComercial}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedMedicine && (
-            <form onSubmit={handleSubmit} style={{
-              backgroundColor: '#f8f9fa',
-              padding: '20px',
-              borderRadius: '8px',
-              border: '1px solid #e9ecef'
-            }}>
-              <div style={{ display: 'grid', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', color: '#495057' }}>
-                    Proveedor (Opcional)
-                  </label>
-                  <select
-                    value={precioForm.supplierId}
-                    onChange={(e) => setPrecioForm({...precioForm, supplierId: e.target.value})}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                      backgroundColor: 'white'
-                    }}
-                  >
-                    <option value="">Sin proveedor específico</option>
-                    {suppliers.map(supplier => (
-                      <option key={supplier.id} value={supplier.id}>
-                        {supplier.name}
-                      </option>
-                    ))}
-                  </select>
-                  <small style={{ color: '#6c757d', fontSize: '12px', display: 'block', marginTop: '4px' }}>
-                    Si no seleccionas un proveedor, el precio será genérico
-                  </small>
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', color: '#495057' }}>
-                    Precio de Compra Unitario *
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={precioForm.precioCompraUnitario}
-                    onChange={(e) => setPrecioForm({...precioForm, precioCompraUnitario: e.target.value})}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: '1px solid #ced4da',
-                      borderRadius: '4px',
-                      fontSize: '14px'
-                    }}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={saving}
-                  style={{
-                    width: '100%',
-                    padding: '10px 20px',
-                    backgroundColor: '#28a745',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: saving ? 'not-allowed' : 'pointer',
-                    opacity: saving ? 0.7 : 1
-                  }}
-                >
-                  {saving ? 'Guardando...' : 'Agregar Precio'}
-                </button>
-              </div>
-            </form>
-          )}
+      <div style={{ padding: '0 24px' }}>
+        {/* Selector de medicamento */}
+        <div style={{ marginBottom: '24px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#495057' }}>
+            Seleccionar Medicamento
+          </label>
+          <select
+            value={selectedMedicine}
+            onChange={(e) => setSelectedMedicine(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              border: '1px solid #ced4da',
+              borderRadius: '4px',
+              fontSize: '14px',
+              backgroundColor: 'white'
+            }}
+          >
+            <option value="">Seleccionar medicamento...</option>
+            {medicines.map(medicine => (
+              <option key={medicine.id} value={medicine.id}>
+                {medicine.codigo} - {medicine.nombreComercial}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Lista de precios */}
-        <div>
-          <h3 style={{ color: '#495057', marginBottom: '16px' }}>
-            Historial de Precios
-          </h3>
-          <div style={{
+        {selectedMedicine && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            {/* ============================================ */}
+            {/* COLUMNA IZQUIERDA: PRECIO DE COMPRA (DOP) */}
+            {/* ============================================ */}
+            <div style={{ 
+              backgroundColor: '#fff8f0', 
+              padding: '20px', 
+              borderRadius: '8px',
+              border: '2px solid #ffc107'
+            }}>
+              <h3 style={{ 
+                color: '#856404', 
+                marginBottom: '16px',
+                fontSize: '16px',
+                fontWeight: '600'
+              }}>
+                💰 Precio de Compra (DOP)
+              </h3>
+
+              {/* Formulario de Compra DOP */}
+              <form onSubmit={handleSubmitCompraDOP} style={{
+                backgroundColor: 'white',
+                padding: '16px',
+                borderRadius: '6px',
+                border: '1px solid #e9ecef',
+                marginBottom: '20px'
+              }}>
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', color: '#495057', fontSize: '13px' }}>
+                      Proveedor (Opcional)
+                    </label>
+                    <select
+                      value={precioCompraDOPForm.supplierId}
+                      onChange={(e) => setPrecioCompraDOPForm({...precioCompraDOPForm, supplierId: e.target.value})}
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        border: '1px solid #ced4da',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        backgroundColor: 'white'
+                      }}
+                    >
+                      <option value="">Sin proveedor</option>
+                      {suppliers.map(supplier => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', color: '#495057', fontSize: '13px' }}>
+                      Precio Compra (DOP) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={precioCompraDOPForm.precioCompraUnitario}
+                      onChange={(e) => setPrecioCompraDOPForm({...precioCompraDOPForm, precioCompraUnitario: e.target.value})}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        border: '1px solid #ced4da',
+                        borderRadius: '4px',
+                        fontSize: '13px'
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={savingCompraDOP}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      backgroundColor: '#ffc107',
+                      color: '#856404',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: savingCompraDOP ? 'not-allowed' : 'pointer',
+                      opacity: savingCompraDOP ? 0.7 : 1
+                    }}
+                  >
+                    {savingCompraDOP ? 'Guardando...' : '+ Agregar Precio Compra'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Historial de Precios de Compra DOP */}
+              <div>
+                <h4 style={{ 
+                  fontSize: '14px', 
+                  fontWeight: '600', 
+                  color: '#495057', 
+                  marginBottom: '12px' 
+                }}>
+                  Historial de Precios Compra
+                </h4>
+                <div style={{
+                  backgroundColor: 'white',
+                  borderRadius: '6px',
+                  border: '1px solid #e9ecef',
+                  maxHeight: '400px',
+                  overflow: 'auto'
+                }}>
+                  {preciosCompraDOP.length === 0 ? (
+                    <div style={{ padding: '30px', textAlign: 'center', color: '#6c757d', fontSize: '13px' }}>
+                      Sin precios de compra
+                    </div>
+                  ) : (
+                    <div style={{ padding: '12px' }}>
+                      {preciosCompraDOP.map((precio) => (
+                        <div
+                          key={precio.id}
+                          style={{
+                            backgroundColor: '#f8f9fa',
+                            padding: '12px',
+                            marginBottom: '8px',
+                            borderRadius: '4px',
+                            border: '1px solid #dee2e6'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '12px', fontWeight: '500', color: '#495057', marginBottom: '2px' }}>
+                                {precio.supplier ? precio.supplier.name : 'Sin proveedor'}
+                              </div>
+                              <div style={{ fontSize: '15px', fontWeight: '600', color: '#856404', marginBottom: '2px' }}>
+                                DOP ${parseFloat(precio.precioCompraUnitario).toFixed(2)}
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#6c757d' }}>
+                                {new Date(precio.created_at).toLocaleDateString('es-ES')}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{
+                                backgroundColor: precio.activo ? '#d4edda' : '#f8d7da',
+                                color: precio.activo ? '#155724' : '#721c24',
+                                padding: '3px 8px',
+                                borderRadius: '10px',
+                                fontSize: '10px',
+                                fontWeight: '600'
+                              }}>
+                                {precio.activo ? 'ACTIVO' : 'INACTIVO'}
+                              </div>
+                              {precio.activo ? (
+                                <button
+                                  onClick={() => handleDeleteCompraDOP(precio.id)}
+                                  style={{
+                                    backgroundColor: '#dc3545',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '5px 10px',
+                                    borderRadius: '3px',
+                                    fontSize: '11px',
+                                    fontWeight: '500',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Eliminar
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleReactivarCompraDOP(precio.id)}
+                                  style={{
+                                    backgroundColor: '#28a745',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '5px 10px',
+                                    borderRadius: '3px',
+                                    fontSize: '11px',
+                                    fontWeight: '500',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Reactivar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* ============================================ */}
+            {/* COLUMNA DERECHA: PRECIO DE VENTA (MN) */}
+            {/* ============================================ */}
+            <div style={{ 
+              backgroundColor: '#f0f8ff', 
+              padding: '20px', 
+              borderRadius: '8px',
+              border: '2px solid #17a2b8'
+            }}>
+              <h3 style={{ 
+                color: '#0c5460', 
+                marginBottom: '16px',
+                fontSize: '16px',
+                fontWeight: '600'
+              }}>
+                💵 Precio de Venta (MN)
+              </h3>
+
+              {/* Formulario de Venta MN */}
+              <form onSubmit={handleSubmitVentaMN} style={{
+                backgroundColor: 'white',
+                padding: '16px',
+                borderRadius: '6px',
+                border: '1px solid #e9ecef',
+                marginBottom: '20px'
+              }}>
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', color: '#495057', fontSize: '13px' }}>
+                      Precio Venta (MN) *
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={precioVentaMNForm.precioVentaMN}
+                      onChange={(e) => setPrecioVentaMNForm({...precioVentaMNForm, precioVentaMN: e.target.value})}
+                      required
+                      style={{
+                        width: '100%',
+                        padding: '8px 10px',
+                        border: '1px solid #ced4da',
+                        borderRadius: '4px',
+                        fontSize: '13px'
+                      }}
+                    />
+                    <small style={{ color: '#6c757d', fontSize: '11px', display: 'block', marginTop: '4px' }}>
+                      Solo puede haber 1 precio de venta MN activo
+                    </small>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={savingVentaMN}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      backgroundColor: '#17a2b8',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      fontWeight: '600',
+                      cursor: savingVentaMN ? 'not-allowed' : 'pointer',
+                      opacity: savingVentaMN ? 0.7 : 1
+                    }}
+                  >
+                    {savingVentaMN ? 'Guardando...' : '+ Agregar Precio Venta'}
+                  </button>
+                </div>
+              </form>
+
+              {/* Historial de Precios de Venta MN */}
+              <div>
+                <h4 style={{ 
+                  fontSize: '14px', 
+                  fontWeight: '600', 
+                  color: '#495057', 
+                  marginBottom: '12px' 
+                }}>
+                  Historial de Precios Venta
+                </h4>
+                <div style={{
+                  backgroundColor: 'white',
+                  borderRadius: '6px',
+                  border: '1px solid #e9ecef',
+                  maxHeight: '400px',
+                  overflow: 'auto'
+                }}>
+                  {preciosVentaMN.length === 0 ? (
+                    <div style={{ padding: '30px', textAlign: 'center', color: '#6c757d', fontSize: '13px' }}>
+                      Sin precios de venta
+                    </div>
+                  ) : (
+                    <div style={{ padding: '12px' }}>
+                      {preciosVentaMN.map((precio) => (
+                        <div
+                          key={precio.id}
+                          style={{
+                            backgroundColor: '#f8f9fa',
+                            padding: '12px',
+                            marginBottom: '8px',
+                            borderRadius: '4px',
+                            border: '1px solid #dee2e6'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '15px', fontWeight: '600', color: '#0c5460', marginBottom: '2px' }}>
+                                MN ${parseFloat(precio.precioVentaMN).toFixed(2)}
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#6c757d' }}>
+                                {new Date(precio.created_at).toLocaleDateString('es-ES')}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{
+                                backgroundColor: precio.activo ? '#d4edda' : '#f8d7da',
+                                color: precio.activo ? '#155724' : '#721c24',
+                                padding: '3px 8px',
+                                borderRadius: '10px',
+                                fontSize: '10px',
+                                fontWeight: '600'
+                              }}>
+                                {precio.activo ? 'ACTIVO' : 'INACTIVO'}
+                              </div>
+                              {precio.activo ? (
+                                <button
+                                  onClick={() => handleDeleteVentaMN(precio.id)}
+                                  style={{
+                                    backgroundColor: '#dc3545',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '5px 10px',
+                                    borderRadius: '3px',
+                                    fontSize: '11px',
+                                    fontWeight: '500',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Eliminar
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleReactivarVentaMN(precio.id)}
+                                  style={{
+                                    backgroundColor: '#28a745',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '5px 10px',
+                                    borderRadius: '3px',
+                                    fontSize: '11px',
+                                    fontWeight: '500',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Reactivar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!selectedMedicine && (
+          <div style={{ 
+            padding: '60px', 
+            textAlign: 'center', 
+            color: '#6c757d',
             backgroundColor: '#f8f9fa',
             borderRadius: '8px',
-            border: '1px solid #e9ecef',
-            maxHeight: '500px',
-            overflow: 'auto'
+            border: '1px solid #e9ecef'
           }}>
-            {!selectedMedicine ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#6c757d' }}>
-                Selecciona un medicamento para ver sus precios
-              </div>
-            ) : precios.length === 0 ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#6c757d' }}>
-                No hay precios registrados para este medicamento
-              </div>
-            ) : (
-              <div style={{ padding: '16px' }}>
-                {precios.map((precio, index) => (
-                  <div
-                    key={precio.id}
-                    style={{
-                      backgroundColor: 'white',
-                      padding: '16px',
-                      marginBottom: '12px',
-                      borderRadius: '6px',
-                      border: '1px solid #e9ecef',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '14px', fontWeight: '500', color: '#2c3e50', marginBottom: '4px' }}>
-                          {precio.supplier ? `Proveedor: ${precio.supplier.name}` : 'Precio genérico'}
-                        </div>
-                        <div style={{ fontSize: '16px', fontWeight: '600', color: '#dc3545', marginBottom: '4px' }}>
-                          ${parseFloat(precio.precioCompraUnitario).toFixed(2)}
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#6c757d' }}>
-                          Creado: {new Date(precio.created_at).toLocaleDateString('es-ES')}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{
-                          backgroundColor: precio.activo ? '#d4edda' : '#f8d7da',
-                          color: precio.activo ? '#155724' : '#721c24',
-                          padding: '4px 8px',
-                          borderRadius: '12px',
-                          fontSize: '11px',
-                          fontWeight: '500'
-                        }}>
-                          {precio.activo ? 'ACTIVO' : 'INACTIVO'}
-                        </div>
-                        {precio.activo && (
-                          <button
-                            onClick={() => handleDelete(precio.id)}
-                            style={{
-                              backgroundColor: '#dc3545',
-                              color: 'white',
-                              border: 'none',
-                              padding: '6px 12px',
-                              borderRadius: '4px',
-                              fontSize: '12px',
-                              fontWeight: '500',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Eliminar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            Selecciona un medicamento para gestionar sus precios
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

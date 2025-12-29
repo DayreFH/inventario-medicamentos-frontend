@@ -24,20 +24,21 @@ model User {
 }
 
 model Medicine {
-  id                Int               @id @default(autoincrement())
-  codigo            String            @unique
+  id                Int                      @id @default(autoincrement())
+  codigo            String                   @unique
   nombreComercial   String
   nombreGenerico    String
-  formaFarmaceutica FormaFarmaceutica @default(comprimidos)
-  concentracion     Concentracion     @default(mg)
-  presentacion      Presentacion      @default(blister)
+  formaFarmaceutica FormaFarmaceutica        @default(comprimidos)
+  concentracion     Concentracion            @default(mg)
+  presentacion      Presentacion             @default(blister)
   fechaVencimiento  DateTime?
-  pesoKg            Decimal           @default(0.000) @db.Decimal(10, 3)
-  stock             Int               @default(0)
-  created_at        DateTime          @default(now())
-  updated_at        DateTime          @updatedAt
+  pesoKg            Decimal                  @default(0.000) @db.Decimal(10, 3)
+  stock             Int                      @default(0)
+  created_at        DateTime                 @default(now())
+  updated_at        DateTime                 @updatedAt
   parametros        MedicineParam?
   precios           MedicinePrice[]
+  preciosVentaMN    MedicinePriceVentaMN[]
   receiptitem       receiptitem[]
   saleitem          saleitem[]
 
@@ -64,6 +65,19 @@ model MedicinePrice {
   @@index([medicineId], map: "medicine_prices_medicineId_fkey")
   @@index([supplierId], map: "medicine_prices_supplierId_fkey")
   @@map("medicine_prices")
+}
+
+model MedicinePriceVentaMN {
+  id             Int      @id @default(autoincrement())
+  medicineId     Int
+  precioVentaMN  Decimal  @db.Decimal(10, 2)
+  activo         Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  medicine       Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+
+  @@index([medicineId], map: "medicine_prices_venta_mn_medicineId_fkey")
+  @@map("medicine_prices_venta_mn")
 }
 
 model MedicineParam {
