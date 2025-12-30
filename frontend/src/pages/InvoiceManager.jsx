@@ -63,6 +63,34 @@ const InvoiceManager = () => {
     }
   };
 
+  const handleDeleteSale = async (sale) => {
+    const tipoVenta = sale.tipoVenta || 'USD';
+    const total = calculateSaleTotal(sale);
+    const confirmMessage = `¿Está seguro de eliminar la venta #${sale.id}?\n\n` +
+      `Cliente: ${sale.customer?.name || 'N/A'}\n` +
+      `Fecha: ${formatDate(sale.date)}\n` +
+      `Total: ${formatCurrencyByType(total, tipoVenta)}\n` +
+      `Items: ${sale.items.length}\n\n` +
+      `⚠️ Esta acción revertirá el stock de los medicamentos y no se puede deshacer.`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.delete(`/sales/${sale.id}`);
+      alert('✅ Venta eliminada exitosamente. El stock ha sido revertido.');
+      loadPendingSales();
+    } catch (error) {
+      console.error('Error eliminando venta:', error);
+      const errorMsg = error.response?.data?.detail || error.response?.data?.error || error.message;
+      alert(`❌ Error al eliminar venta:\n\n${errorMsg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadEmittedInvoices = async () => {
     setLoadingInvoices(true);
     try {
@@ -221,9 +249,13 @@ const InvoiceManager = () => {
       createdAt: new Date().toISOString(),
       sale: {
         ...selectedSale,
+        tipoVenta: selectedSale.tipoVenta || 'USD',
         saleitem: selectedSale.items.map(item => ({
           ...item,
-          medicines: item.medicine
+          medicines: item.medicine,
+          qty: item.qty,
+          precio_venta_mn: item.precio_venta_mn,
+          precio_propuesto_usd: item.precio_propuesto_usd
         }))
       }
     };
@@ -234,7 +266,7 @@ const InvoiceManager = () => {
 
   const calculateSubtotal = () => {
     if (!selectedSale) return 0;
-    return selectedSale.items.reduce((sum, item) => sum + (item.precio_propuesto_usd * item.qty), 0);
+    return calculateSaleTotal(selectedSale);
   };
 
   const calculateITBIS = () => {
@@ -260,6 +292,39 @@ const InvoiceManager = () => {
       currency: 'USD',
       minimumFractionDigits: 2
     }).format(value);
+  };
+
+  // Calcular total de una venta según su tipo (MN o USD)
+  const calculateSaleTotal = (sale) => {
+    if (!sale || !sale.items) return 0;
+    
+    const tipoVenta = sale.tipoVenta || 'USD';
+    
+    if (tipoVenta === 'MN') {
+      // Para ventas MN: usar precio_venta_mn
+      return sale.items.reduce((sum, item) => {
+        const precio = parseFloat(item.precio_venta_mn) || 0;
+        const qty = parseInt(item.qty) || 0;
+        return sum + (precio * qty);
+      }, 0);
+    } else {
+      // Para ventas USD: usar precio_propuesto_usd
+      return sale.items.reduce((sum, item) => {
+        const precio = parseFloat(item.precio_propuesto_usd) || 0;
+        const qty = parseInt(item.qty) || 0;
+        return sum + (precio * qty);
+      }, 0);
+    }
+  };
+
+  // Formatear moneda según tipo de venta
+  const formatCurrencyByType = (amount, tipoVenta = 'USD') => {
+    const formatted = new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+    
+    return tipoVenta === 'MN' ? `MN ${formatted}` : `USD ${formatted}`;
   };
 
   const formatDate = (dateString) => {
@@ -410,11 +475,14 @@ const InvoiceManager = () => {
                       <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>
                         Forma de Pago
                       </th>
+                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#475569' }}>
+                        Moneda
+                      </th>
                       <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>
                         Items
                       </th>
                       <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>
-                        Total USD
+                        Total
                       </th>
                       <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#475569' }}>
                         Acción
@@ -423,11 +491,23 @@ const InvoiceManager = () => {
                   </thead>
                   <tbody>
                     {pendingSales.map((sale) => {
-                      const total = sale.items.reduce((sum, item) => sum + (item.precio_propuesto_usd * item.qty), 0);
+                      const tipoVenta = sale.tipoVenta || 'USD';
+                      const total = calculateSaleTotal(sale);
                       return (
                         <tr key={sale.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                           <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>
                             #{sale.id}
+                            <span style={{
+                              marginLeft: '8px',
+                              padding: '2px 6px',
+                              backgroundColor: tipoVenta === 'MN' ? '#10b981' : '#3b82f6',
+                              color: 'white',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: '600'
+                            }}>
+                              {tipoVenta}
+                            </span>
                           </td>
                           <td style={{ padding: '12px', fontSize: '14px', color: '#475569' }}>
                             {formatDate(sale.date)}
@@ -438,28 +518,60 @@ const InvoiceManager = () => {
                           <td style={{ padding: '12px', fontSize: '14px', color: '#475569' }}>
                             {sale.paymentMethod || 'efectivo'}
                           </td>
+                          <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'center' }}>
+                            <span style={{
+                              padding: '4px 8px',
+                              backgroundColor: tipoVenta === 'MN' ? '#d1fae5' : '#dbeafe',
+                              color: tipoVenta === 'MN' ? '#065f46' : '#1e40af',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: '600'
+                            }}>
+                              {tipoVenta}
+                            </span>
+                          </td>
                           <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'right' }}>
                             {sale.items.length}
                           </td>
                           <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b', fontWeight: '600', textAlign: 'right' }}>
-                            {formatCurrency(total)}
+                            {formatCurrencyByType(total, tipoVenta)}
                           </td>
                           <td style={{ padding: '12px', textAlign: 'center' }}>
-                            <button
-                              onClick={() => handleSelectSale(sale)}
-                              style={{
-                                padding: '6px 12px',
-                                backgroundColor: '#10b981',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                cursor: 'pointer',
-                                fontWeight: '500'
-                              }}
-                            >
-                              🧾 Facturar
-                            </button>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                              <button
+                                onClick={() => handleSelectSale(sale)}
+                                style={{
+                                  padding: '6px 12px',
+                                  backgroundColor: '#10b981',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  cursor: 'pointer',
+                                  fontWeight: '500'
+                                }}
+                              >
+                                🧾 Facturar
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSale(sale)}
+                                disabled={loading}
+                                style={{
+                                  padding: '6px 12px',
+                                  backgroundColor: loading ? '#9ca3af' : '#ef4444',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  cursor: loading ? 'not-allowed' : 'pointer',
+                                  fontWeight: '500',
+                                  opacity: loading ? 0.6 : 1
+                                }}
+                                title="Eliminar venta y revertir stock"
+                              >
+                                🗑️ Eliminar
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -910,7 +1022,7 @@ const InvoiceManager = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <span style={{ fontSize: '14px', color: '#64748b' }}>Subtotal:</span>
                     <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>
-                      {formatCurrency(calculateSubtotal())}
+                      {formatCurrencyByType(calculateSubtotal(), selectedSale?.tipoVenta || 'USD')}
                     </span>
                   </div>
                   
@@ -920,7 +1032,7 @@ const InvoiceManager = () => {
                         ITBIS ({invoiceData.itbis}%):
                       </span>
                       <span style={{ fontSize: '14px', color: '#10b981', fontWeight: '500' }}>
-                        + {formatCurrency(calculateITBIS())}
+                        + {formatCurrencyByType(calculateITBIS(), selectedSale?.tipoVenta || 'USD')}
                       </span>
                     </div>
                   )}
@@ -931,7 +1043,7 @@ const InvoiceManager = () => {
                         Descuento ({invoiceData.discount}%):
                       </span>
                       <span style={{ fontSize: '14px', color: '#ef4444', fontWeight: '500' }}>
-                        - {formatCurrency(calculateDiscount())}
+                        - {formatCurrencyByType(calculateDiscount(), selectedSale?.tipoVenta || 'USD')}
                       </span>
                     </div>
                   )}
@@ -945,7 +1057,7 @@ const InvoiceManager = () => {
                   }}>
                     <span style={{ fontSize: '16px', color: '#1e293b', fontWeight: '600' }}>Total:</span>
                     <span style={{ fontSize: '18px', color: '#1e293b', fontWeight: '700' }}>
-                      {formatCurrency(calculateTotal())}
+                      {formatCurrencyByType(calculateTotal(), selectedSale?.tipoVenta || 'USD')}
                     </span>
                   </div>
                 </div>
@@ -1267,22 +1379,28 @@ const InvoiceManager = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {previewInvoice.sale?.saleitem?.map((item, index) => (
-                    <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>
-                        {item.medicines?.nombreComercial || 'N/A'}
-                      </td>
-                      <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'center' }}>
-                        {item.qty}
-                      </td>
-                      <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'right' }}>
-                        {formatCurrency(item.precio_propuesto_usd || 0)}
-                      </td>
-                      <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b', fontWeight: '600', textAlign: 'right' }}>
-                        {formatCurrency((item.precio_propuesto_usd || 0) * item.qty)}
-                      </td>
-                    </tr>
-                  ))}
+                  {previewInvoice.sale?.saleitem?.map((item, index) => {
+                    const tipoVenta = previewInvoice.sale?.tipoVenta || 'USD';
+                    const precio = tipoVenta === 'MN' 
+                      ? (item.precio_venta_mn || 0)
+                      : (item.precio_propuesto_usd || 0);
+                    return (
+                      <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>
+                          {item.medicines?.nombreComercial || 'N/A'}
+                        </td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'center' }}>
+                          {item.qty}
+                        </td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'right' }}>
+                          {formatCurrencyByType(precio, tipoVenta)}
+                        </td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b', fontWeight: '600', textAlign: 'right' }}>
+                          {formatCurrencyByType(precio * item.qty, tipoVenta)}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 
@@ -1297,7 +1415,7 @@ const InvoiceManager = () => {
                     color: '#475569'
                   }}>
                     <span>Subtotal:</span>
-                    <span>{formatCurrency(previewInvoice.subtotal)}</span>
+                    <span>{formatCurrencyByType(previewInvoice.subtotal, previewInvoice.sale?.tipoVenta || 'USD')}</span>
                   </div>
                   
                   {previewInvoice.itbis > 0 && (
@@ -1309,7 +1427,7 @@ const InvoiceManager = () => {
                       color: '#475569'
                     }}>
                       <span>ITBIS ({previewInvoice.itbis}%):</span>
-                      <span>{formatCurrency(previewInvoice.itbisAmount)}</span>
+                      <span>{formatCurrencyByType(previewInvoice.itbisAmount, previewInvoice.sale?.tipoVenta || 'USD')}</span>
                     </div>
                   )}
                   
@@ -1322,7 +1440,7 @@ const InvoiceManager = () => {
                       color: '#ef4444'
                     }}>
                       <span>Descuento ({previewInvoice.discount}%):</span>
-                      <span>-{formatCurrency(previewInvoice.discountAmount)}</span>
+                      <span>-{formatCurrencyByType(previewInvoice.discountAmount, previewInvoice.sale?.tipoVenta || 'USD')}</span>
                     </div>
                   )}
                   
@@ -1337,7 +1455,7 @@ const InvoiceManager = () => {
                     color: '#1e293b'
                   }}>
                     <span>TOTAL:</span>
-                    <span>{formatCurrency(previewInvoice.total)}</span>
+                    <span>{formatCurrencyByType(previewInvoice.total, previewInvoice.sale?.tipoVenta || 'USD')}</span>
                   </div>
                 </div>
               </div>

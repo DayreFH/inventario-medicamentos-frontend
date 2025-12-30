@@ -190,7 +190,7 @@ const SaleFormUSD = () => {
 
     // Cargar proveedores que tienen precios para este medicamento
     try {
-      const { data } = await api.get(`/api/medicines/${medicine.id}`);
+      const { data } = await api.get(`/medicines/${medicine.id}`);
       const preciosActivos = (data.precios || []).filter(p => p.activo);
       
       if (preciosActivos.length === 0) {
@@ -221,7 +221,7 @@ const SaleFormUSD = () => {
 
     // Cargar precios del proveedor seleccionado para este medicamento
     try {
-      const { data } = await api.get(`/api/medicines/${selectedMedicine.id}`);
+      const { data } = await api.get(`/medicines/${selectedMedicine.id}`);
       const preciosDelProveedor = (data.precios || []).filter(
         p => p.activo && p.supplierId === parseInt(supplierId)
       );

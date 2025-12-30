@@ -60,12 +60,13 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
     );
   }
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2
+  const formatCurrency = (value, tipoVenta = 'USD') => {
+    const formatted = new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(value);
+    
+    return tipoVenta === 'MN' ? `MN ${formatted}` : `USD ${formatted}`;
   };
 
   const formatDate = (dateString) => {
@@ -81,6 +82,8 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
     try {
       console.log('🔵 Iniciando generación de PDF...');
       console.log('📄 Datos de factura:', invoice);
+      
+      const tipoVenta = invoice.sale?.tipoVenta || 'USD';
       
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
@@ -175,15 +178,17 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
     console.log('📋 Items de la venta:', invoice.sale?.saleitem);
     
     const tableData = invoice.sale?.saleitem?.map(item => {
-      const precio = Number(item.precio_propuesto_usd) || 0;
+      const precio = tipoVenta === 'MN' 
+        ? (Number(item.precio_venta_mn) || 0)
+        : (Number(item.precio_propuesto_usd) || 0);
       const cantidad = Number(item.qty) || 0;
       const subtotal = precio * cantidad;
       
       return [
         item.medicines?.nombreComercial || 'N/A',
         cantidad.toString(),
-        formatCurrency(precio),
-        formatCurrency(subtotal)
+        formatCurrency(precio, tipoVenta),
+        formatCurrency(subtotal, tipoVenta)
       ];
     }) || [];
     
@@ -222,14 +227,14 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
     // Subtotal
     doc.setFont('helvetica', 'normal');
     doc.text('Subtotal:', totalsX, yPos);
-    doc.text(formatCurrency(Number(invoice.subtotal) || 0), pageWidth - 15, yPos, { align: 'right' });
+    doc.text(formatCurrency(Number(invoice.subtotal) || 0, tipoVenta), pageWidth - 15, yPos, { align: 'right' });
     
     // ITBIS
     const itbisValue = Number(invoice.itbis) || 0;
     if (itbisValue > 0) {
       yPos += 6;
       doc.text(`ITBIS (${itbisValue}%):`, totalsX, yPos);
-      doc.text(formatCurrency(Number(invoice.itbisAmount) || 0), pageWidth - 15, yPos, { align: 'right' });
+      doc.text(formatCurrency(Number(invoice.itbisAmount) || 0, tipoVenta), pageWidth - 15, yPos, { align: 'right' });
     }
     
     // Descuento
@@ -238,7 +243,7 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
       yPos += 6;
       doc.text(`Descuento (${discountValue}%):`, totalsX, yPos);
       doc.setTextColor(239, 68, 68);
-      doc.text(`-${formatCurrency(Number(invoice.discountAmount) || 0)}`, pageWidth - 15, yPos, { align: 'right' });
+      doc.text(`-${formatCurrency(Number(invoice.discountAmount) || 0, tipoVenta)}`, pageWidth - 15, yPos, { align: 'right' });
       doc.setTextColor(0, 0, 0);
     }
     
@@ -253,7 +258,7 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
     doc.text('TOTAL:', totalsX, yPos);
-    doc.text(formatCurrency(Number(invoice.total) || 0), pageWidth - 15, yPos, { align: 'right' });
+    doc.text(formatCurrency(Number(invoice.total) || 0, tipoVenta), pageWidth - 15, yPos, { align: 'right' });
     
     // NOTAS
     if (invoice.notes) {
@@ -469,22 +474,28 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
               </tr>
             </thead>
             <tbody>
-              {invoice.sale?.saleitem?.map((item, index) => (
-                <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                  <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>
-                    {item.medicines?.nombreComercial || 'N/A'}
-                  </td>
-                  <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'center' }}>
-                    {item.qty}
-                  </td>
-                  <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'right' }}>
-                    {formatCurrency(item.precio_propuesto_usd || 0)}
-                  </td>
-                  <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b', fontWeight: '600', textAlign: 'right' }}>
-                    {formatCurrency((item.precio_propuesto_usd || 0) * item.qty)}
-                  </td>
-                </tr>
-              ))}
+              {invoice.sale?.saleitem?.map((item, index) => {
+                const tipoVenta = invoice.sale?.tipoVenta || 'USD';
+                const precio = tipoVenta === 'MN' 
+                  ? (item.precio_venta_mn || 0)
+                  : (item.precio_propuesto_usd || 0);
+                return (
+                  <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>
+                      {item.medicines?.nombreComercial || 'N/A'}
+                    </td>
+                    <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'center' }}>
+                      {item.qty}
+                    </td>
+                    <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'right' }}>
+                      {formatCurrency(precio, tipoVenta)}
+                    </td>
+                    <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b', fontWeight: '600', textAlign: 'right' }}>
+                      {formatCurrency(precio * item.qty, tipoVenta)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -499,7 +510,7 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
                 color: '#475569'
               }}>
                 <span>Subtotal:</span>
-                <span>{formatCurrency(invoice.subtotal)}</span>
+                <span>{formatCurrency(invoice.subtotal, invoice.sale?.tipoVenta || 'USD')}</span>
               </div>
               
               {invoice.itbis > 0 && (
@@ -511,7 +522,7 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
                   color: '#475569'
                 }}>
                   <span>ITBIS ({invoice.itbis}%):</span>
-                  <span>{formatCurrency(invoice.itbisAmount)}</span>
+                  <span>{formatCurrency(invoice.itbisAmount, invoice.sale?.tipoVenta || 'USD')}</span>
                 </div>
               )}
               
@@ -524,7 +535,7 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
                   color: '#ef4444'
                 }}>
                   <span>Descuento ({invoice.discount}%):</span>
-                  <span>-{formatCurrency(invoice.discountAmount)}</span>
+                  <span>-{formatCurrency(invoice.discountAmount, invoice.sale?.tipoVenta || 'USD')}</span>
                 </div>
               )}
               
@@ -539,7 +550,7 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
                 color: '#1e293b'
               }}>
                 <span>TOTAL:</span>
-                <span>{formatCurrency(invoice.total)}</span>
+                <span>{formatCurrency(invoice.total, invoice.sale?.tipoVenta || 'USD')}</span>
               </div>
             </div>
           </div>

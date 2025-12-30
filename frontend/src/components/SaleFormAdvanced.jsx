@@ -344,19 +344,19 @@ const SaleFormAdvanced = () => {
     setLoading(true);
     try {
       const saleData = {
-        items: saleItems.map(item => ({
-          medicineId: item.medicineId,
-          customerId: item.customerId,
-          quantity: item.quantity,
-          precio_venta_mn: item.precioVentaMN,
-          costo_unitario_usd: item.costoUnitarioUSD
-        })),
+        customerId: saleItems[0].customerId,
         date: saleItems[0].saleDate,
         paymentMethod: selectedPaymentMethod,
-        tipoVenta: 'MN'
+        tipoVenta: 'MN',
+        items: saleItems.map(item => ({
+          medicineId: item.medicineId,
+          qty: item.quantity,
+          precio_venta_mn: item.precioVentaMN,
+          costo_unitario_usd: item.costoUnitarioUSD
+        }))
       };
 
-      await api.post('/api/sales', saleData);
+      await api.post('/sales', saleData);
       
       alert('✅ Venta guardada exitosamente');
       
