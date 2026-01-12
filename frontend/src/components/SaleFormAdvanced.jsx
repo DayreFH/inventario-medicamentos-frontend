@@ -38,10 +38,14 @@ const SaleFormAdvanced = () => {
         setInitialLoading(true);
         await loadInitialData();
         await loadPaymentMethods();
-        await checkExchangeRateMN();
+        const isValidMN = await checkExchangeRateMN();
+        
+        if (isValidMN) {
+          setInitialLoading(false);
+        }
+        // Si no es válido, mantener loading (usuario será redirigido o verá alert)
       } catch (error) {
         console.error('Error initializing data:', error);
-      } finally {
         setInitialLoading(false);
       }
     };
@@ -95,10 +99,10 @@ const SaleFormAdvanced = () => {
     try {
       const { data } = await api.get('/exchange-rates-mn/current');
       if (data) {
-        setExchangeRateMN(parseFloat(data.sellRate || data.buyRate));
-        const today = new Date().toDateString();
-        localStorage.setItem('exchangeRateMN', JSON.stringify({ rate: parseFloat(data.sellRate || data.buyRate), date: today }));
-        return; // Éxito - salir de la función
+      setExchangeRateMN(parseFloat(data.sellRate || data.buyRate));
+      const today = new Date().toDateString();
+      localStorage.setItem('exchangeRateMN', JSON.stringify({ rate: parseFloat(data.sellRate || data.buyRate), date: today }));
+      return true; // Éxito - tasa válida encontrada
       }
     } catch (error) {
       console.error('Error cargando tasa de cambio MN:', error);
@@ -112,9 +116,9 @@ const SaleFormAdvanced = () => {
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        if (data.date === today && data.rate) {
-          setExchangeRateMN(parseFloat(data.rate));
-          return; // Encontró tasa del día en localStorage - continuar
+      if (data.date === today && data.rate) {
+        setExchangeRateMN(parseFloat(data.rate));
+        return true; // Encontró tasa del día en localStorage - continuar
         }
       } catch (e) {
         console.error('Error parsing exchangeRateMN from localStorage:', e);
@@ -136,6 +140,8 @@ const SaleFormAdvanced = () => {
         'Por favor, diríjase a:\nCONFIGURACIÓN > Tasas de Cambio MN'
       );
     }
+    
+    return false; // No hay tasa válida
   };
 
   const loadInitialData = async () => {
