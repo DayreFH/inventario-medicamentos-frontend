@@ -196,25 +196,34 @@ const InvoiceReports = () => {
     );
   }
 
+  // Helper para obtener datos de forma de pago según filtro
+  const getPorFormaPagoData = () => {
+    if (!reportData) return null;
+    
+    if (filters.currency === 'USD' && reportData.porFormaPagoUSD) {
+      return reportData.porFormaPagoUSD;
+    } else if (filters.currency === 'MN' && reportData.porFormaPagoMN) {
+      return reportData.porFormaPagoMN;
+    }
+    
+    // Para 'BOTH' o retrocompatibilidad
+    return reportData.porFormaPago;
+  };
+
   // Preparar datos para gráfico de dona (Forma de Pago)
   const paymentMethodData = reportData ? (() => {
-    let porFormaPagoData = reportData.porFormaPago;
+    const porFormaPagoData = getPorFormaPagoData();
     
-    // Si hay datos nuevos y se seleccionó una moneda específica
-    if (filters.currency === 'USD' && reportData.porFormaPagoUSD) {
-      porFormaPagoData = reportData.porFormaPagoUSD;
-    } else if (filters.currency === 'MN' && reportData.porFormaPagoMN) {
-      porFormaPagoData = reportData.porFormaPagoMN;
-    }
+    if (!porFormaPagoData) return null;
     
     return {
       labels: ['Efectivo', 'Tarjeta', 'Transferencia', 'Crédito'],
       datasets: [{
         data: [
-          porFormaPagoData.efectivo,
-          porFormaPagoData.tarjeta,
-          porFormaPagoData.transferencia,
-          porFormaPagoData.credito
+          porFormaPagoData.efectivo || 0,
+          porFormaPagoData.tarjeta || 0,
+          porFormaPagoData.transferencia || 0,
+          porFormaPagoData.credito || 0
         ],
         backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
         borderWidth: 2,
@@ -223,29 +232,40 @@ const InvoiceReports = () => {
     };
   })() : null;
 
-  // Preparar datos para gráfico de barras (Facturas por Día)
-  const dailyData = reportData ? (() => {
-    let facturasPorDiaData = reportData.facturasPorDia || [];
+  // Helper para obtener datos de facturas por día según filtro
+  const getFacturasPorDiaData = () => {
+    if (!reportData) return [];
     
-    // Si hay datos nuevos y se seleccionó una moneda específica
     if (filters.currency === 'USD' && reportData.facturasPorDiaUSD) {
-      facturasPorDiaData = reportData.facturasPorDiaUSD;
+      return reportData.facturasPorDiaUSD;
     } else if (filters.currency === 'MN' && reportData.facturasPorDiaMN) {
-      facturasPorDiaData = reportData.facturasPorDiaMN;
+      return reportData.facturasPorDiaMN;
     }
     
-    return facturasPorDiaData.length > 0 ? {
+    // Para 'BOTH' o retrocompatibilidad
+    return reportData.facturasPorDia || [];
+  };
+
+  // Preparar datos para gráfico de barras (Facturas por Día)
+  const dailyData = reportData ? (() => {
+    const facturasPorDiaData = getFacturasPorDiaData();
+    
+    if (facturasPorDiaData.length === 0) return null;
+    
+    const currencyLabel = filters.currency === 'BOTH' ? 'USD+MN' : filters.currency;
+    
+    return {
       labels: facturasPorDiaData.map(d => {
         const date = new Date(d.fecha);
         return `${date.getDate()} ${['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][date.getMonth()]}`;
       }),
       datasets: [{
-        label: `Monto Facturado (${filters.currency === 'MN' ? 'MN' : 'USD'})`,
+        label: `Monto Facturado (${currencyLabel})`,
         data: facturasPorDiaData.map(d => d.monto),
-        backgroundColor: '#3b82f6',
+        backgroundColor: filters.currency === 'MN' ? '#f59e0b' : '#3b82f6',
         borderRadius: 4
       }]
-    } : null;
+    };
   })() : null;
 
   // Helper para obtener top clientes según filtro de moneda
@@ -679,30 +699,42 @@ const InvoiceReports = () => {
                 borderRadius: '8px',
                 border: '1px solid #e2e8f0'
               }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>
-                  💳 Por Forma de Pago
-                </h3>
-                <div style={{ maxWidth: '300px', margin: '0 auto' }}>
-                  <Doughnut data={paymentMethodData} options={{ maintainAspectRatio: true }} />
-                </div>
-                <div style={{ marginTop: '16px', fontSize: '13px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span>💵 Efectivo:</span>
-                    <strong>{formatCurrency(reportData.porFormaPago.efectivo)}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span>💳 Tarjeta:</span>
-                    <strong>{formatCurrency(reportData.porFormaPago.tarjeta)}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span>🏦 Transferencia:</span>
-                    <strong>{formatCurrency(reportData.porFormaPago.transferencia)}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>📝 Crédito:</span>
-                    <strong>{formatCurrency(reportData.porFormaPago.credito)}</strong>
-                  </div>
-                </div>
+              <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1e293b', marginBottom: '16px' }}>
+                💳 Por Forma de Pago
+                {filters.currency !== 'BOTH' && (
+                  <span style={{ fontSize: '14px', fontWeight: '400', color: '#64748b', marginLeft: '8px' }}>
+                    ({filters.currency})
+                  </span>
+                )}
+              </h3>
+              <div style={{ maxWidth: '300px', margin: '0 auto' }}>
+                <Doughnut data={paymentMethodData} options={{ maintainAspectRatio: true }} />
+              </div>
+              <div style={{ marginTop: '16px', fontSize: '13px' }}>
+                {(() => {
+                  const porFormaPagoData = getPorFormaPagoData();
+                  return (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span>💵 Efectivo:</span>
+                        <strong>{formatCurrency(porFormaPagoData?.efectivo || 0, filters.currency)}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span>💳 Tarjeta:</span>
+                        <strong>{formatCurrency(porFormaPagoData?.tarjeta || 0, filters.currency)}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span>🏦 Transferencia:</span>
+                        <strong>{formatCurrency(porFormaPagoData?.transferencia || 0, filters.currency)}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>📝 Crédito:</span>
+                        <strong>{formatCurrency(porFormaPagoData?.credito || 0, filters.currency)}</strong>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
               </div>
             )}
 
