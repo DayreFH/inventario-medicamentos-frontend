@@ -35,23 +35,16 @@ const SaleFormAdvanced = () => {
   useEffect(() => {
     const initializeData = async () => {
       try {
-        console.log('🚀 [DEBUG] Iniciando initializeData...');
         setInitialLoading(true);
         await loadInitialData();
         await loadPaymentMethods();
         const isValidMN = await checkExchangeRateMN();
         
-        console.log('🔍 [DEBUG] isValidMN =', isValidMN);
-        
         if (isValidMN) {
-          console.log('✅ [DEBUG] Tasa válida, quitando loading...');
           setInitialLoading(false);
-        } else {
-          console.log('❌ [DEBUG] Tasa NO válida, manteniendo loading infinito...');
         }
-        // Si no es válido, mantener loading (usuario será redirigido o verá alert)
       } catch (error) {
-        console.error('❌ [DEBUG] Error en initializeData:', error);
+        console.error('Error initializing data:', error);
         setInitialLoading(false);
       }
     };
@@ -102,79 +95,56 @@ const SaleFormAdvanced = () => {
   }, []);
 
   const checkExchangeRateMN = async () => {
-    console.log('🔍 [DEBUG] Iniciando checkExchangeRateMN...');
     try {
       const { data } = await api.get('/exchange-rates-mn/current');
-      console.log('✅ [DEBUG] API respondió con data:', data);
       if (data) {
         // Verificar que la tasa sea del día de hoy
         const rateDate = new Date(data.date).toDateString();
         const today = new Date().toDateString();
         
-        console.log('🔍 [DEBUG] Comparando fechas:', { rateDate, today, sonIguales: rateDate === today });
-        
         if (rateDate === today) {
-          // Es del día de hoy - válida
           setExchangeRateMN(parseFloat(data.sellRate || data.buyRate));
           localStorage.setItem('exchangeRateMN', JSON.stringify({ rate: parseFloat(data.sellRate || data.buyRate), date: today }));
-          console.log('✅ [DEBUG] Tasa del día de hoy encontrada, retornando true');
           return true;
-        } else {
-          console.log('⚠️ [DEBUG] Tasa encontrada pero NO es del día de hoy (es del ' + rateDate + ')');
-          // Continuar a validar localStorage
         }
       }
     } catch (error) {
-      console.error('❌ [DEBUG] Error de API:', error.response?.status, error.response?.data);
+      console.error('Error cargando tasa de cambio MN:', error);
     }
     
     // Si llegamos aquí, no se pudo obtener la tasa de la API
     // Verificar si existe en localStorage para el día de hoy
     const today = new Date().toDateString();
     const saved = localStorage.getItem('exchangeRateMN');
-    console.log('🔍 [DEBUG] Buscando en localStorage...', { today, saved });
     
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        console.log('🔍 [DEBUG] Data en localStorage:', data);
         if (data.date === today && data.rate) {
           setExchangeRateMN(parseFloat(data.rate));
-          console.log('✅ [DEBUG] Tasa encontrada en localStorage, retornando true');
-          return true; // Encontró tasa del día en localStorage - continuar
-        } else {
-          console.log('⚠️ [DEBUG] Tasa en localStorage NO es del día de hoy o no tiene rate');
+          return true;
         }
       } catch (e) {
-        console.error('❌ [DEBUG] Error parsing exchangeRateMN from localStorage:', e);
+        console.error('Error parsing exchangeRateMN from localStorage:', e);
       }
-    } else {
-      console.log('⚠️ [DEBUG] No hay datos en localStorage');
     }
     
     // NO HAY TASA CONFIGURADA PARA HOY - MOSTRAR ALERTA BLOQUEANTE
-    console.log('⚠️ [DEBUG] NO HAY TASA VÁLIDA - Mostrando confirm...');
     const configure = confirm(
       '⚠️ ATENCIÓN: Debe configurar la Tasa de Cambio MN para el día de hoy antes de realizar salidas.\n\n' +
       '¿Desea ir a configurarla ahora?'
     );
     
-    console.log('🔍 [DEBUG] Usuario respondió al confirm:', configure);
-    
     if (configure) {
-      // Redirigir a la página de configuración de tasas MN
-      console.log('🔄 [DEBUG] Redirigiendo a /admin/usd-mn...');
       window.location.href = '/admin/usd-mn';
     } else {
-      console.log('⚠️ [DEBUG] Mostrando alert de bloqueo...');
       alert(
         '❌ No se puede continuar sin configurar la Tasa de Cambio MN.\n\n' +
         'Por favor, diríjase a:\nCONFIGURACIÓN > Tasas de Cambio MN'
       );
     }
     
-    console.log('❌ [DEBUG] Retornando false - NO hay tasa válida');
-    return false; // No hay tasa válida
+    return false;
   };
 
   const loadInitialData = async () => {
