@@ -169,6 +169,11 @@ const InvoiceReports = () => {
     
     if (curr === 'MN') {
       return `MN $${formatted}`;
+    } else if (curr === 'USD') {
+      return `USD $${formatted}`;
+    } else if (curr === 'BOTH') {
+      // Para BOTH, mostrar como USD por defecto (o podríamos mostrar ambos)
+      return `USD $${formatted}`;
     }
     
     return `USD $${formatted}`;
@@ -200,12 +205,19 @@ const InvoiceReports = () => {
   const getPorFormaPagoData = () => {
     if (!reportData) return null;
     
+    console.log('🔍 getPorFormaPagoData - filters.currency:', filters.currency);
+    console.log('🔍 reportData.porFormaPagoUSD:', reportData.porFormaPagoUSD);
+    console.log('🔍 reportData.porFormaPagoMN:', reportData.porFormaPagoMN);
+    
     if (filters.currency === 'USD' && reportData.porFormaPagoUSD) {
+      console.log('✅ Usando porFormaPagoUSD');
       return reportData.porFormaPagoUSD;
     } else if (filters.currency === 'MN' && reportData.porFormaPagoMN) {
+      console.log('✅ Usando porFormaPagoMN');
       return reportData.porFormaPagoMN;
     }
     
+    console.log('⚠️ Usando porFormaPago (fallback)');
     // Para 'BOTH' o retrocompatibilidad
     return reportData.porFormaPago;
   };
