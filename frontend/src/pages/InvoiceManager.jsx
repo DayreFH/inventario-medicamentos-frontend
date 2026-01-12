@@ -834,30 +834,39 @@ const InvoiceManager = () => {
                   Items:
                 </h4>
                 <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  {selectedSale.items.map((item, idx) => (
-                    <div key={idx} style={{
-                      padding: '8px',
-                      backgroundColor: '#f8fafc',
-                      borderRadius: '4px',
-                      marginBottom: '8px',
-                      display: 'flex',
-                      justifyContent: 'space-between'
-                    }}>
-                      <div>
-                        <p style={{ fontSize: '13px', color: '#1e293b', margin: '0 0 4px 0', fontWeight: '500' }}>
-                          {item.medicine?.nombreComercial || 'N/A'}
-                        </p>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
-                          Cantidad: {item.qty} × {formatCurrency(item.precio_propuesto_usd)}
-                        </p>
+                  {selectedSale.items.map((item, idx) => {
+                    const tipoVenta = selectedSale.tipoVenta || 'USD';
+                    const precio = tipoVenta === 'MN' 
+                      ? (parseFloat(item.precio_venta_mn) || 0)
+                      : (parseFloat(item.precio_propuesto_usd) || 0);
+                    const qty = parseInt(item.qty) || 0;
+                    const subtotal = precio * qty;
+                    
+                    return (
+                      <div key={idx} style={{
+                        padding: '8px',
+                        backgroundColor: '#f8fafc',
+                        borderRadius: '4px',
+                        marginBottom: '8px',
+                        display: 'flex',
+                        justifyContent: 'space-between'
+                      }}>
+                        <div>
+                          <p style={{ fontSize: '13px', color: '#1e293b', margin: '0 0 4px 0', fontWeight: '500' }}>
+                            {item.medicine?.nombreComercial || 'N/A'}
+                          </p>
+                          <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>
+                            Cantidad: {qty} × {formatCurrencyByType(precio, tipoVenta)}
+                          </p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ fontSize: '14px', color: '#1e293b', margin: 0, fontWeight: '600' }}>
+                            {formatCurrencyByType(subtotal, tipoVenta)}
+                          </p>
+                        </div>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <p style={{ fontSize: '14px', color: '#1e293b', margin: 0, fontWeight: '600' }}>
-                          {formatCurrency(item.precio_propuesto_usd * item.qty)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
