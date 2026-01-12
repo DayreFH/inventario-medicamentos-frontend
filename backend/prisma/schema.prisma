@@ -226,6 +226,7 @@ model saleitem {
   costo_unitario_usd   Decimal?  @db.Decimal(10, 2)
   precio_propuesto_usd Decimal?  @db.Decimal(10, 2)
   precio_venta_mn      Decimal?  @db.Decimal(10, 2)
+  precio_compra_dop    Decimal?  @db.Decimal(10, 2)
   supplierId           Int?
   medicines            Medicine  @relation(fields: [medicineId], references: [id], onDelete: Cascade, map: "SaleItem_medicineId_fkey")
   sale                 sale      @relation(fields: [saleId], references: [id], map: "SaleItem_saleId_fkey")

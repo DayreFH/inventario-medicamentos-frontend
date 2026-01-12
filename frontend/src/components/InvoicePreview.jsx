@@ -184,19 +184,52 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
       const cantidad = Number(item.qty) || 0;
       const subtotal = precio * cantidad;
       
-      return [
-        item.medicines?.nombreComercial || 'N/A',
-        cantidad.toString(),
-        formatCurrency(precio, tipoVenta),
-        formatCurrency(subtotal, tipoVenta)
-      ];
+      if (tipoVenta === 'USD') {
+        // Para facturas USD, incluir Precio Compra DOP
+        const precioCompraDOP = Number(item.precio_compra_dop) || 0;
+        return [
+          item.medicines?.nombreComercial || 'N/A',
+          cantidad.toString(),
+          `DOP ${precioCompraDOP.toFixed(2)}`,
+          formatCurrency(precio, tipoVenta),
+          formatCurrency(subtotal, tipoVenta)
+        ];
+      } else {
+        // Para facturas MN, mantener estructura original
+        return [
+          item.medicines?.nombreComercial || 'N/A',
+          cantidad.toString(),
+          formatCurrency(precio, tipoVenta),
+          formatCurrency(subtotal, tipoVenta)
+        ];
+      }
     }) || [];
     
     console.log('📊 Datos de tabla procesados:', tableData);
     
+    // Configurar encabezados y columnas según tipo de venta
+    const tableHeaders = tipoVenta === 'USD'
+      ? [['Medicamento', 'Cantidad', 'Precio Compra DOP', 'Precio Unit.', 'Subtotal']]
+      : [['Medicamento', 'Cantidad', 'Precio Unit.', 'Subtotal']];
+    
+    const columnStyles = tipoVenta === 'USD'
+      ? {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 25, halign: 'center' },
+          2: { cellWidth: 35, halign: 'right' },
+          3: { cellWidth: 30, halign: 'right' },
+          4: { cellWidth: 30, halign: 'right' }
+        }
+      : {
+          0: { cellWidth: 80 },
+          1: { cellWidth: 30, halign: 'center' },
+          2: { cellWidth: 35, halign: 'right' },
+          3: { cellWidth: 35, halign: 'right' }
+        };
+    
     autoTable(doc, {
       startY: yPos,
-      head: [['Medicamento', 'Cantidad', 'Precio Unit.', 'Subtotal']],
+      head: tableHeaders,
       body: tableData,
       theme: 'striped',
       headStyles: {
@@ -208,12 +241,7 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
       bodyStyles: {
         fontSize: 9
       },
-      columnStyles: {
-        0: { cellWidth: 80 },
-        1: { cellWidth: 30, halign: 'center' },
-        2: { cellWidth: 35, halign: 'right' },
-        3: { cellWidth: 35, halign: 'right' }
-      },
+      columnStyles: columnStyles,
       margin: { left: 15, right: 15 }
     });
     
@@ -465,6 +493,11 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
                 <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600' }}>
                   Cantidad
                 </th>
+                {(invoice.sale?.tipoVenta || 'USD') === 'USD' && (
+                  <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600' }}>
+                    Precio Compra DOP
+                  </th>
+                )}
                 <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600' }}>
                   Precio Unit.
                 </th>
@@ -479,6 +512,7 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
                 const precio = tipoVenta === 'MN' 
                   ? (item.precio_venta_mn || 0)
                   : (item.precio_propuesto_usd || 0);
+                const precioCompraDOP = Number(item.precio_compra_dop) || 0;
                 return (
                   <tr key={index} style={{ borderBottom: '1px solid #e2e8f0' }}>
                     <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>
@@ -487,6 +521,11 @@ const InvoicePreview = ({ invoice, onClose, onDownloadPDF }) => {
                     <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'center' }}>
                       {item.qty}
                     </td>
+                    {tipoVenta === 'USD' && (
+                      <td style={{ padding: '12px', fontSize: '14px', color: '#dc3545', textAlign: 'right', fontWeight: '500' }}>
+                        DOP {precioCompraDOP.toFixed(2)}
+                      </td>
+                    )}
                     <td style={{ padding: '12px', fontSize: '14px', color: '#475569', textAlign: 'right' }}>
                       {formatCurrency(precio, tipoVenta)}
                     </td>

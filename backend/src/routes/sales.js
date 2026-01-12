@@ -65,6 +65,7 @@ router.post('/', async (req, res) => {
             costo_unitario_usd: item.costo_unitario_usd || null,
             precio_propuesto_usd: item.precio_propuesto_usd || null,
             precio_venta_mn: item.precio_venta_mn || null,
+            precio_compra_dop: item.precio_compra_dop || null,
             supplierId: item.supplierId || null
           }
         });

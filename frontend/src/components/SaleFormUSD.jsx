@@ -395,6 +395,7 @@ const SaleFormUSD = () => {
           qty: item.quantity,
           costo_unitario_usd: item.costoUnitarioUSD,
           precio_propuesto_usd: item.precioVentaUSD,
+          precio_compra_dop: item.precioCompraDOP,
           supplierId: item.supplierId
         }))
       };
@@ -659,7 +660,7 @@ const SaleFormUSD = () => {
           {/* Precio de Compra */}
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: '500' }}>
-              Precio Compra *
+              Precio de Compra DOP
             </label>
             <select
               value={selectedPrice?.id || ''}
@@ -847,6 +848,7 @@ const SaleFormUSD = () => {
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', width: '120px' }}>Presentación</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '60px' }}>Cantidad</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '80px' }}>Peso Kg</th>
+                <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '110px' }}>Precio Compra DOP</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '100px' }}>Precio de Venta USD</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '100px' }}>Subtotal USD</th>
                 <th style={{ padding: '6px', textAlign: 'left', border: '1px solid #dee2e6', fontSize: '12px', whiteSpace: 'nowrap', width: '60px' }}>Acciones</th>
@@ -855,7 +857,7 @@ const SaleFormUSD = () => {
             <tbody>
               {saleItems.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ 
+                  <td colSpan="8" style={{ 
                     padding: '40px', 
                     textAlign: 'center', 
                     color: '#6c757d',
@@ -875,6 +877,9 @@ const SaleFormUSD = () => {
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'center' }}>{item.quantity}</td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'right', color: '#6c757d' }}>
                       {(item.pesoKg || 0).toFixed(3)} kg
+                    </td>
+                    <td style={{ padding: '6px', border: '1px solid #dee2e6', fontSize: '12px', textAlign: 'right', color: '#dc3545', fontWeight: '500' }}>
+                      DOP {(item.precioCompraDOP || 0).toFixed(2)}
                     </td>
                     <td style={{ padding: '6px', border: '1px solid #dee2e6', fontWeight: 'bold', color: '#007bff', fontSize: '12px', textAlign: 'right' }}>
                       ${item.precioVentaUSD.toFixed(2)}
