@@ -632,8 +632,15 @@ const InvoiceReports = () => {
               <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px', fontWeight: '500' }}>
                 💸 Monto Anulado
               </div>
-              <div style={{ fontSize: '28px', fontWeight: '700', color: '#ef4444' }}>
-                {formatCurrency(reportData.summary.totalAnulado)}
+              <div style={{ fontSize: filters.currency === 'BOTH' ? '20px' : '28px', fontWeight: '700', color: '#ef4444' }}>
+                {(() => {
+                  const summary = getSummary();
+                  if (!summary) return '$0.00';
+                  if (summary.isBoth) {
+                    return formatBothCurrencies(summary.USD.totalAnulado, summary.MN.totalAnulado);
+                  }
+                  return formatCurrency(summary.totalAnulado);
+                })()}
               </div>
             </div>
 
@@ -647,8 +654,15 @@ const InvoiceReports = () => {
               <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px', fontWeight: '500' }}>
                 📈 Promedio/Factura
               </div>
-              <div style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b' }}>
-                {formatCurrency(reportData.summary.promedioFactura)}
+              <div style={{ fontSize: filters.currency === 'BOTH' ? '20px' : '28px', fontWeight: '700', color: '#1e293b' }}>
+                {(() => {
+                  const summary = getSummary();
+                  if (!summary) return '$0.00';
+                  if (summary.isBoth) {
+                    return formatBothCurrencies(summary.USD.promedioFactura, summary.MN.promedioFactura);
+                  }
+                  return formatCurrency(summary.promedioFactura);
+                })()}
               </div>
             </div>
 
@@ -662,8 +676,15 @@ const InvoiceReports = () => {
               <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px', fontWeight: '500' }}>
                 🧾 ITBIS Cobrado
               </div>
-              <div style={{ fontSize: '28px', fontWeight: '700', color: '#f59e0b' }}>
-                {formatCurrency(reportData.summary.totalITBIS)}
+              <div style={{ fontSize: filters.currency === 'BOTH' ? '20px' : '28px', fontWeight: '700', color: '#f59e0b' }}>
+                {(() => {
+                  const summary = getSummary();
+                  if (!summary) return '$0.00';
+                  if (summary.isBoth) {
+                    return formatBothCurrencies(summary.USD.totalITBIS, summary.MN.totalITBIS);
+                  }
+                  return formatCurrency(summary.totalITBIS);
+                })()}
               </div>
             </div>
 
@@ -677,8 +698,15 @@ const InvoiceReports = () => {
               <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px', fontWeight: '500' }}>
                 💰 Descuentos
               </div>
-              <div style={{ fontSize: '28px', fontWeight: '700', color: '#8b5cf6' }}>
-                {formatCurrency(reportData.summary.totalDescuentos)}
+              <div style={{ fontSize: filters.currency === 'BOTH' ? '20px' : '28px', fontWeight: '700', color: '#8b5cf6' }}>
+                {(() => {
+                  const summary = getSummary();
+                  if (!summary) return '$0.00';
+                  if (summary.isBoth) {
+                    return formatBothCurrencies(summary.USD.totalDescuentos, summary.MN.totalDescuentos);
+                  }
+                  return formatCurrency(summary.totalDescuentos);
+                })()}
               </div>
             </div>
 
