@@ -205,38 +205,43 @@ const InvoiceReports = () => {
   const getPorFormaPagoData = () => {
     if (!reportData) return null;
     
-    console.log('🔍 getPorFormaPagoData - filters.currency:', filters.currency);
-    console.log('🔍 reportData.porFormaPagoUSD:', reportData.porFormaPagoUSD);
-    console.log('🔍 reportData.porFormaPagoMN:', reportData.porFormaPagoMN);
-    
     if (filters.currency === 'USD' && reportData.porFormaPagoUSD) {
-      console.log('✅ Usando porFormaPagoUSD');
       return reportData.porFormaPagoUSD;
     } else if (filters.currency === 'MN' && reportData.porFormaPagoMN) {
-      console.log('✅ Usando porFormaPagoMN');
       return reportData.porFormaPagoMN;
     }
     
-    console.log('⚠️ Usando porFormaPago (fallback)');
     // Para 'BOTH' o retrocompatibilidad
     return reportData.porFormaPago;
   };
 
   // Preparar datos para gráfico de dona (Forma de Pago)
   const paymentMethodData = reportData ? (() => {
-    const porFormaPagoData = getPorFormaPagoData();
+    let efectivo = 0, tarjeta = 0, transferencia = 0, credito = 0;
     
-    if (!porFormaPagoData) return null;
+    if (filters.currency === 'BOTH') {
+      // Sumar ambas monedas para el gráfico
+      const usd = reportData.porFormaPagoUSD || { efectivo: 0, tarjeta: 0, transferencia: 0, credito: 0 };
+      const mn = reportData.porFormaPagoMN || { efectivo: 0, tarjeta: 0, transferencia: 0, credito: 0 };
+      
+      efectivo = (usd.efectivo || 0) + (mn.efectivo || 0);
+      tarjeta = (usd.tarjeta || 0) + (mn.tarjeta || 0);
+      transferencia = (usd.transferencia || 0) + (mn.transferencia || 0);
+      credito = (usd.credito || 0) + (mn.credito || 0);
+    } else {
+      const porFormaPagoData = getPorFormaPagoData();
+      if (!porFormaPagoData) return null;
+      
+      efectivo = porFormaPagoData.efectivo || 0;
+      tarjeta = porFormaPagoData.tarjeta || 0;
+      transferencia = porFormaPagoData.transferencia || 0;
+      credito = porFormaPagoData.credito || 0;
+    }
     
     return {
       labels: ['Efectivo', 'Tarjeta', 'Transferencia', 'Crédito'],
       datasets: [{
-        data: [
-          porFormaPagoData.efectivo || 0,
-          porFormaPagoData.tarjeta || 0,
-          porFormaPagoData.transferencia || 0,
-          porFormaPagoData.credito || 0
-        ],
+        data: [efectivo, tarjeta, transferencia, credito],
         backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444'],
         borderWidth: 2,
         borderColor: '#fff'
@@ -724,27 +729,69 @@ const InvoiceReports = () => {
               </div>
               <div style={{ marginTop: '16px', fontSize: '13px' }}>
                 {(() => {
-                  const porFormaPagoData = getPorFormaPagoData();
-                  return (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span>💵 Efectivo:</span>
-                        <strong>{formatCurrency(porFormaPagoData?.efectivo || 0, filters.currency)}</strong>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span>💳 Tarjeta:</span>
-                        <strong>{formatCurrency(porFormaPagoData?.tarjeta || 0, filters.currency)}</strong>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span>🏦 Transferencia:</span>
-                        <strong>{formatCurrency(porFormaPagoData?.transferencia || 0, filters.currency)}</strong>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>📝 Crédito:</span>
-                        <strong>{formatCurrency(porFormaPagoData?.credito || 0, filters.currency)}</strong>
-                      </div>
-                    </>
-                  );
+                  const showBothCurrencies = filters.currency === 'BOTH';
+                  
+                  if (showBothCurrencies) {
+                    // Mostrar ambas monedas en columnas separadas
+                    const porFormaPagoUSD = reportData.porFormaPagoUSD || { efectivo: 0, tarjeta: 0, transferencia: 0, credito: 0 };
+                    const porFormaPagoMN = reportData.porFormaPagoMN || { efectivo: 0, tarjeta: 0, transferencia: 0, credito: 0 };
+                    
+                    return (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'center' }}>
+                          <span>💵 Efectivo:</span>
+                          <div style={{ display: 'flex', gap: '12px', fontSize: '12px' }}>
+                            <strong style={{ color: '#3b82f6' }}>{formatCurrency(porFormaPagoUSD.efectivo, 'USD')}</strong>
+                            <strong style={{ color: '#f59e0b' }}>{formatCurrency(porFormaPagoMN.efectivo, 'MN')}</strong>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'center' }}>
+                          <span>💳 Tarjeta:</span>
+                          <div style={{ display: 'flex', gap: '12px', fontSize: '12px' }}>
+                            <strong style={{ color: '#3b82f6' }}>{formatCurrency(porFormaPagoUSD.tarjeta, 'USD')}</strong>
+                            <strong style={{ color: '#f59e0b' }}>{formatCurrency(porFormaPagoMN.tarjeta, 'MN')}</strong>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'center' }}>
+                          <span>🏦 Transferencia:</span>
+                          <div style={{ display: 'flex', gap: '12px', fontSize: '12px' }}>
+                            <strong style={{ color: '#3b82f6' }}>{formatCurrency(porFormaPagoUSD.transferencia, 'USD')}</strong>
+                            <strong style={{ color: '#f59e0b' }}>{formatCurrency(porFormaPagoMN.transferencia, 'MN')}</strong>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>📝 Crédito:</span>
+                          <div style={{ display: 'flex', gap: '12px', fontSize: '12px' }}>
+                            <strong style={{ color: '#3b82f6' }}>{formatCurrency(porFormaPagoUSD.credito, 'USD')}</strong>
+                            <strong style={{ color: '#f59e0b' }}>{formatCurrency(porFormaPagoMN.credito, 'MN')}</strong>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  } else {
+                    // Mostrar solo la moneda seleccionada
+                    const porFormaPagoData = getPorFormaPagoData();
+                    return (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span>💵 Efectivo:</span>
+                          <strong>{formatCurrency(porFormaPagoData?.efectivo || 0, filters.currency)}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span>💳 Tarjeta:</span>
+                          <strong>{formatCurrency(porFormaPagoData?.tarjeta || 0, filters.currency)}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span>🏦 Transferencia:</span>
+                          <strong>{formatCurrency(porFormaPagoData?.transferencia || 0, filters.currency)}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>📝 Crédito:</span>
+                          <strong>{formatCurrency(porFormaPagoData?.credito || 0, filters.currency)}</strong>
+                        </div>
+                      </>
+                    );
+                  }
                 })()}
               </div>
               </div>
