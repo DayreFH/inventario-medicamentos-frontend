@@ -107,11 +107,22 @@ const SaleFormAdvanced = () => {
       const { data } = await api.get('/exchange-rates-mn/current');
       console.log('✅ [DEBUG] API respondió con data:', data);
       if (data) {
-        setExchangeRateMN(parseFloat(data.sellRate || data.buyRate));
+        // Verificar que la tasa sea del día de hoy
+        const rateDate = new Date(data.date).toDateString();
         const today = new Date().toDateString();
-        localStorage.setItem('exchangeRateMN', JSON.stringify({ rate: parseFloat(data.sellRate || data.buyRate), date: today }));
-        console.log('✅ [DEBUG] Tasa guardada, retornando true');
-        return true; // Éxito - tasa válida encontrada
+        
+        console.log('🔍 [DEBUG] Comparando fechas:', { rateDate, today, sonIguales: rateDate === today });
+        
+        if (rateDate === today) {
+          // Es del día de hoy - válida
+          setExchangeRateMN(parseFloat(data.sellRate || data.buyRate));
+          localStorage.setItem('exchangeRateMN', JSON.stringify({ rate: parseFloat(data.sellRate || data.buyRate), date: today }));
+          console.log('✅ [DEBUG] Tasa del día de hoy encontrada, retornando true');
+          return true;
+        } else {
+          console.log('⚠️ [DEBUG] Tasa encontrada pero NO es del día de hoy (es del ' + rateDate + ')');
+          // Continuar a validar localStorage
+        }
       }
     } catch (error) {
       console.error('❌ [DEBUG] Error de API:', error.response?.status, error.response?.data);
