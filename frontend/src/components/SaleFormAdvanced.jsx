@@ -98,9 +98,43 @@ const SaleFormAdvanced = () => {
         setExchangeRateMN(parseFloat(data.sellRate || data.buyRate));
         const today = new Date().toDateString();
         localStorage.setItem('exchangeRateMN', JSON.stringify({ rate: parseFloat(data.sellRate || data.buyRate), date: today }));
+        return; // Éxito - salir de la función
       }
     } catch (error) {
       console.error('Error cargando tasa de cambio MN:', error);
+    }
+    
+    // Si llegamos aquí, no se pudo obtener la tasa de la API
+    // Verificar si existe en localStorage para el día de hoy
+    const today = new Date().toDateString();
+    const saved = localStorage.getItem('exchangeRateMN');
+    
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.date === today && data.rate) {
+          setExchangeRateMN(parseFloat(data.rate));
+          return; // Encontró tasa del día en localStorage - continuar
+        }
+      } catch (e) {
+        console.error('Error parsing exchangeRateMN from localStorage:', e);
+      }
+    }
+    
+    // NO HAY TASA CONFIGURADA PARA HOY - MOSTRAR ALERTA BLOQUEANTE
+    const configure = confirm(
+      '⚠️ ATENCIÓN: Debe configurar la Tasa de Cambio MN para el día de hoy antes de realizar salidas.\n\n' +
+      '¿Desea ir a configurarla ahora?'
+    );
+    
+    if (configure) {
+      // Redirigir a la página de configuración de tasas MN
+      window.location.href = '/admin/usd-mn';
+    } else {
+      alert(
+        '❌ No se puede continuar sin configurar la Tasa de Cambio MN.\n\n' +
+        'Por favor, diríjase a:\nCONFIGURACIÓN > Tasas de Cambio MN'
+      );
     }
   };
 
