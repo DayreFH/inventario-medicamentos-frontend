@@ -181,12 +181,15 @@ const ProfitabilityAnalysis = () => {
 
       {/* Filtros */}
       <div style={{
-        backgroundColor: '#ffffff',
-        padding: '16px',
-        borderBottom: '1px solid #e9ecef',
+        backgroundColor: 'white',
+        padding: '20px',
+        borderRadius: '8px',
+        border: '1px solid #e2e8f0',
+        marginBottom: '24px',
         display: 'flex',
         gap: '16px',
-        alignItems: 'end'
+        alignItems: 'end',
+        flexWrap: 'wrap'
       }}>
         <div>
           <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: '500' }}>
@@ -248,45 +251,52 @@ const ProfitabilityAnalysis = () => {
           onClick={loadData}
           disabled={loading}
           style={{
-            padding: '8px 16px',
-            backgroundColor: '#007bff',
+            padding: '10px 20px',
+            backgroundColor: '#3b82f6',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
-            fontSize: '13px',
-            fontWeight: '500',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '600',
             cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.6 : 1
+            opacity: loading ? 0.6 : 1,
+            transition: 'all 0.2s',
+            boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)'
           }}
         >
-          {loading ? 'Cargando...' : '🔍 Consultar'}
+          {loading ? '⏳ Cargando...' : '🔍 Consultar'}
         </button>
         <button
           onClick={handleExportCSV}
           disabled={loading}
           style={{
-            padding: '8px 16px',
-            backgroundColor: '#28a745',
+            padding: '10px 20px',
+            backgroundColor: '#10b981',
             color: 'white',
             border: 'none',
-            borderRadius: '4px',
-            fontSize: '13px',
-            fontWeight: '500',
+            borderRadius: '6px',
+            fontSize: '14px',
+            fontWeight: '600',
             cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.6 : 1
+            opacity: loading ? 0.6 : 1,
+            transition: 'all 0.2s',
+            boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)'
           }}
         >
-          📄 Exportar CSV
+          📊 Exportar Excel
         </button>
       </div>
 
       {/* Tabs */}
       <div style={{
         display: 'flex',
-        backgroundColor: '#f8f9fa',
-        borderBottom: '2px solid #e9ecef',
-        padding: '0 16px',
-        gap: '8px'
+        backgroundColor: 'white',
+        borderBottom: '2px solid #e2e8f0',
+        padding: '0',
+        gap: '4px',
+        marginBottom: '24px',
+        borderRadius: '8px 8px 0 0',
+        overflow: 'hidden'
       }}>
         {[
           { id: 'summary', label: '📊 Resumen General' },
@@ -299,15 +309,16 @@ const ProfitabilityAnalysis = () => {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: '12px 24px',
+              padding: '14px 24px',
               border: 'none',
-              backgroundColor: activeTab === tab.id ? '#2c3e50' : 'transparent',
-              color: activeTab === tab.id ? 'white' : '#666',
+              backgroundColor: activeTab === tab.id ? '#1e293b' : 'transparent',
+              color: activeTab === tab.id ? 'white' : '#64748b',
               cursor: 'pointer',
-              fontWeight: activeTab === tab.id ? '600' : '400',
+              fontWeight: activeTab === tab.id ? '600' : '500',
               fontSize: '14px',
-              borderRadius: '4px 4px 0 0',
-              transition: 'all 0.2s'
+              borderRadius: '0',
+              transition: 'all 0.2s',
+              borderBottom: activeTab === tab.id ? '3px solid #3b82f6' : '3px solid transparent'
             }}
           >
             {tab.label}
@@ -320,7 +331,7 @@ const ProfitabilityAnalysis = () => {
         flex: 1,
         overflowY: 'auto',
         padding: '24px',
-        backgroundColor: '#ffffff'
+        backgroundColor: '#f8fafc'
       }}>
         {loading && (
           <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
@@ -330,73 +341,79 @@ const ProfitabilityAnalysis = () => {
 
         {!loading && activeTab === 'summary' && summaryData && (
           <div>
-            <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '18px', color: '#2c3e50' }}>
+            <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '20px', color: '#1e293b', fontWeight: '600' }}>
               📊 Métricas Generales
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
               <div style={{
                 padding: '20px',
-                backgroundColor: '#f8f9fa',
+                backgroundColor: 'white',
                 borderRadius: '8px',
-                border: '1px solid #e9ecef'
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
               }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>💰 Ingresos Totales</div>
-                <div style={{ fontSize: currency === 'BOTH' ? '20px' : '24px', fontWeight: '600', color: '#28a745' }}>
+                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px', fontWeight: '500' }}>💰 Ingresos Totales</div>
+                <div style={{ fontSize: currency === 'BOTH' ? '20px' : '28px', fontWeight: '700', color: '#10b981' }}>
                   {formatCurrency(summaryData.totalRevenue, summaryData.totalRevenueMN)}
                 </div>
               </div>
               <div style={{
                 padding: '20px',
-                backgroundColor: '#f8f9fa',
+                backgroundColor: 'white',
                 borderRadius: '8px',
-                border: '1px solid #e9ecef'
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
               }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>💸 Costos Totales</div>
-                <div style={{ fontSize: currency === 'BOTH' ? '20px' : '24px', fontWeight: '600', color: '#dc3545' }}>
+                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px', fontWeight: '500' }}>💸 Costos Totales</div>
+                <div style={{ fontSize: currency === 'BOTH' ? '20px' : '28px', fontWeight: '700', color: '#ef4444' }}>
                   {formatCurrency(summaryData.totalCost, summaryData.totalCostMN)}
                 </div>
               </div>
               <div style={{
                 padding: '20px',
-                backgroundColor: '#f8f9fa',
+                backgroundColor: 'white',
                 borderRadius: '8px',
-                border: '1px solid #e9ecef'
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
               }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>💵 Ganancia Bruta</div>
-                <div style={{ fontSize: currency === 'BOTH' ? '20px' : '24px', fontWeight: '600', color: '#007bff' }}>
+                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px', fontWeight: '500' }}>💵 Ganancia Bruta</div>
+                <div style={{ fontSize: currency === 'BOTH' ? '20px' : '28px', fontWeight: '700', color: '#3b82f6' }}>
                   {formatCurrency(summaryData.totalProfit, summaryData.totalProfitMN)}
                 </div>
               </div>
               <div style={{
                 padding: '20px',
-                backgroundColor: '#f8f9fa',
+                backgroundColor: 'white',
                 borderRadius: '8px',
-                border: '1px solid #e9ecef'
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
               }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>📊 Margen de Ganancia</div>
-                <div style={{ fontSize: '24px', fontWeight: '600', color: getMarginColor(summaryData.profitMargin) }}>
+                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px', fontWeight: '500' }}>📊 Margen de Ganancia</div>
+                <div style={{ fontSize: '28px', fontWeight: '700', color: getMarginColor(summaryData.profitMargin) }}>
                   {summaryData.profitMargin.toFixed(2)}%
                 </div>
               </div>
               <div style={{
                 padding: '20px',
-                backgroundColor: '#f8f9fa',
+                backgroundColor: 'white',
                 borderRadius: '8px',
-                border: '1px solid #e9ecef'
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
               }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>📦 Total Ventas</div>
-                <div style={{ fontSize: '24px', fontWeight: '600', color: '#6c757d' }}>
+                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px', fontWeight: '500' }}>📦 Total Ventas</div>
+                <div style={{ fontSize: '28px', fontWeight: '700', color: '#64748b' }}>
                   {summaryData.totalSales}
                 </div>
               </div>
               <div style={{
                 padding: '20px',
-                backgroundColor: '#f8f9fa',
+                backgroundColor: 'white',
                 borderRadius: '8px',
-                border: '1px solid #e9ecef'
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
               }}>
-                <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>🔢 Items Vendidos</div>
-                <div style={{ fontSize: '24px', fontWeight: '600', color: '#6c757d' }}>
+                <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px', fontWeight: '500' }}>🔢 Items Vendidos</div>
+                <div style={{ fontSize: '28px', fontWeight: '700', color: '#64748b' }}>
                   {summaryData.totalItemsSold}
                 </div>
               </div>
@@ -405,8 +422,14 @@ const ProfitabilityAnalysis = () => {
         )}
 
         {!loading && activeTab === 'medicine' && (
-          <div>
-            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px', color: '#2c3e50' }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', color: '#1e293b', fontWeight: '600' }}>
               💊 Rentabilidad por Medicamento
             </h3>
             {medicineData.length === 0 ? (
@@ -417,15 +440,15 @@ const ProfitabilityAnalysis = () => {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                   <thead>
-                    <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
-                      <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600' }}>Código</th>
-                      <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600' }}>Medicamento</th>
-                      <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600' }}>Vendidos</th>
-                      <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600' }}>Costo Total</th>
-                      <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600' }}>Ingreso Total</th>
-                      <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600' }}>Ganancia</th>
-                      <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600' }}>Margen %</th>
-                      <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: '600' }}>Estado</th>
+                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                      <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', fontSize: '12px', color: '#475569' }}>Código</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: '600', fontSize: '12px', color: '#475569' }}>Medicamento</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', fontSize: '12px', color: '#475569' }}>Vendidos</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', fontSize: '12px', color: '#475569' }}>Costo Total</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', fontSize: '12px', color: '#475569' }}>Ingreso Total</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', fontSize: '12px', color: '#475569' }}>Ganancia</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: '600', fontSize: '12px', color: '#475569' }}>Margen %</th>
+                      <th style={{ padding: '12px 8px', textAlign: 'center', fontWeight: '600', fontSize: '12px', color: '#475569' }}>Estado</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -468,8 +491,14 @@ const ProfitabilityAnalysis = () => {
         )}
 
         {!loading && activeTab === 'customer' && (
-          <div>
-            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px', color: '#2c3e50' }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', color: '#1e293b', fontWeight: '600' }}>
               👥 Rentabilidad por Cliente
             </h3>
             {customerData.length === 0 ? (
@@ -516,8 +545,14 @@ const ProfitabilityAnalysis = () => {
         )}
 
         {!loading && activeTab === 'supplier' && (
-          <div>
-            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px', color: '#2c3e50' }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', color: '#1e293b', fontWeight: '600' }}>
               🏢 Rentabilidad por Proveedor
             </h3>
             {supplierData.length === 0 ? (
@@ -562,8 +597,14 @@ const ProfitabilityAnalysis = () => {
         )}
 
         {!loading && activeTab === 'alerts' && (
-          <div>
-            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px', color: '#2c3e50' }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', color: '#1e293b', fontWeight: '600' }}>
               ⚠️ Alertas de Margen Bajo
             </h3>
             {alertsData.length === 0 ? (
