@@ -68,11 +68,11 @@ export default function FinanceReports() {
     let headers = [];
     if (view === 'byMedicine') {
       headers = type === 'sales'
-        ? ['ID', 'Fecha', 'Medicamento', 'Fecha caducidad', 'Cantidad', 'Precio Venta USD', 'Precio Venta MN', 'Moneda']
+        ? ['ID', 'Fecha', 'Medicamento', 'Fecha caducidad', 'Cantidad', 'Precio Unit USD', 'Precio Unit MN', 'Total Venta']
         : ['ID', 'Fecha', 'Medicamento', 'Fecha caducidad', 'Cantidad', 'Costo Unit DOP'];
     } else {
       headers = type === 'sales'
-        ? ['ID', 'Fecha', 'Cliente', 'Medicamento', 'Cantidad', 'Precio Venta USD', 'Precio Venta MN', 'Moneda']
+        ? ['ID', 'Fecha', 'Cliente', 'Medicamento', 'Cantidad', 'Precio Unit USD', 'Precio Unit MN', 'Total Venta']
         : ['ID', 'Fecha', 'Proveedor', 'Medicamento', 'Cantidad', 'Costo Unit DOP'];
     }
     const lines = [];
@@ -81,6 +81,9 @@ export default function FinanceReports() {
     for (const r of rows) {
       if (view === 'byMedicine') {
         if (type === 'sales') {
+          const totalVenta = r.tipoVenta === 'USD' 
+            ? (r.qty * Number(r.priceUSD || 0)).toFixed(2)
+            : (r.qty * Number(r.priceMN || 0)).toFixed(2);
           lines.push([
             r.id, 
             new Date(r.date).toISOString().split('T')[0], 
@@ -89,13 +92,16 @@ export default function FinanceReports() {
             r.qty,
             Number(r.priceUSD || 0).toFixed(2),
             Number(r.priceMN || 0).toFixed(2),
-            r.tipoVenta || 'USD'
+            `${r.tipoVenta || 'USD'} $${totalVenta}`
           ].join(';'));
         } else {
           lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.medicineName || ''}"`, (r.expirationDate ? new Date(r.expirationDate).toISOString().split('T')[0] : ''), r.qty, Number(r.unitCostDOP || 0).toFixed(2)].join(';'));
         }
       } else {
         if (type === 'sales') {
+          const totalVenta = r.tipoVenta === 'USD' 
+            ? (r.qty * Number(r.priceUSD || 0)).toFixed(2)
+            : (r.qty * Number(r.priceMN || 0)).toFixed(2);
           lines.push([
             r.id, 
             new Date(r.date).toISOString().split('T')[0], 
@@ -104,7 +110,7 @@ export default function FinanceReports() {
             r.qty,
             Number(r.priceUSD || 0).toFixed(2),
             Number(r.priceMN || 0).toFixed(2),
-            r.tipoVenta || 'USD'
+            `${r.tipoVenta || 'USD'} $${totalVenta}`
           ].join(';'));
         } else {
           lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.supplierName || ''}"`, `"${r.medicineName || ''}"`, r.qty, Number(r.unitCostDOP || 0).toFixed(2)].join(';'));
@@ -151,7 +157,7 @@ export default function FinanceReports() {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(6, minmax(180px, 1fr))',
+        gridTemplateColumns: type === 'sales' ? 'repeat(6, minmax(180px, 1fr))' : 'repeat(5, minmax(200px, 1fr))',
         gap: '12px',
         alignItems: 'end',
         marginBottom: '16px'
@@ -224,8 +230,8 @@ export default function FinanceReports() {
                       <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Medicamento</th>
                       <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Fecha caducidad</th>
                       <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Cantidad</th>
-                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Precio Venta</th>
-                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Moneda</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Precio Unit.</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Total Venta</th>
                     </>
                   ) : (
                     <>
@@ -241,8 +247,8 @@ export default function FinanceReports() {
                       <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Cliente</th>
                       <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Medicamento</th>
                       <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Cantidad</th>
-                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Precio Venta</th>
-                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Moneda</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Precio Unit.</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Total Venta</th>
                     </>
                   ) : (
                     <>
@@ -265,20 +271,14 @@ export default function FinanceReports() {
                         <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>{r.medicineName}</td>
                         <td style={{ padding: '12px', fontSize: '14px', color: '#64748b' }}>{r.expirationDate ? new Date(r.expirationDate).toLocaleDateString('es-DO') : '—'}</td>
                         <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#1e293b' }}>{r.qty}</td>
-                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#10b981' }}>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#64748b' }}>
                           {formatCurrency(r.priceUSD, r.priceMN)}
                         </td>
-                        <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <span style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: '500',
-                            backgroundColor: r.tipoVenta === 'USD' ? '#dbeafe' : '#fef9c3',
-                            color: r.tipoVenta === 'USD' ? '#1e40af' : '#a16207'
-                          }}>
-                            {r.tipoVenta || 'USD'}
-                          </span>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#10b981' }}>
+                          {r.tipoVenta === 'USD' 
+                            ? `USD $${(r.qty * r.priceUSD).toFixed(2)}`
+                            : `MN $${(r.qty * r.priceMN).toFixed(2)}`
+                          }
                         </td>
                       </>
                     ) : (
@@ -295,20 +295,14 @@ export default function FinanceReports() {
                         <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>{r.customerName}</td>
                         <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>{r.medicineName}</td>
                         <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#1e293b' }}>{r.qty}</td>
-                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#10b981' }}>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#64748b' }}>
                           {formatCurrency(r.priceUSD, r.priceMN)}
                         </td>
-                        <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <span style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: '500',
-                            backgroundColor: r.tipoVenta === 'USD' ? '#dbeafe' : '#fef9c3',
-                            color: r.tipoVenta === 'USD' ? '#1e40af' : '#a16207'
-                          }}>
-                            {r.tipoVenta || 'USD'}
-                          </span>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#10b981' }}>
+                          {r.tipoVenta === 'USD' 
+                            ? `USD $${(r.qty * r.priceUSD).toFixed(2)}`
+                            : `MN $${(r.qty * r.priceMN).toFixed(2)}`
+                          }
                         </td>
                       </>
                     ) : (
