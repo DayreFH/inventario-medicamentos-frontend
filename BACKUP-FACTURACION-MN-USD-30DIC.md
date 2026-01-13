@@ -191,3 +191,4 @@ Subtotal Venta MN = Precio de Venta MN × Cantidad
 **Usuario:** Dayre  
 **Proyecto:** Sistema de Inventario de Medicamentos
 
+
