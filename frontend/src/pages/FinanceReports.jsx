@@ -4,6 +4,7 @@ import api from '../api/http';
 export default function FinanceReports() {
   const [view, setView] = useState('byMedicine'); // 'byMedicine' | 'byParty'
   const [type, setType] = useState('purchases'); // 'sales' | 'purchases' (por defecto compras para ver ENTRADAS)
+  const [currency, setCurrency] = useState('BOTH'); // 'USD' | 'MN' | 'BOTH'
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [rows, setRows] = useState([]);
@@ -50,16 +51,28 @@ export default function FinanceReports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endpoint, start, end]);
 
+  // Helper para formatear moneda
+  const formatCurrency = (valueUSD, valueMN) => {
+    if (currency === 'USD') {
+      return `USD $${(valueUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    } else if (currency === 'MN') {
+      return `MN $${(valueMN || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    } else {
+      // BOTH
+      return `USD $${(valueUSD || 0).toFixed(2)} / MN $${(valueMN || 0).toFixed(2)}`;
+    }
+  };
+
   const handleExportCSV = () => {
     if (!rows || rows.length === 0) return;
     let headers = [];
     if (view === 'byMedicine') {
       headers = type === 'sales'
-        ? ['ID', 'Fecha', 'Medicamento', 'Fecha caducidad', 'Cantidad']
+        ? ['ID', 'Fecha', 'Medicamento', 'Fecha caducidad', 'Cantidad', 'Precio Venta USD', 'Precio Venta MN', 'Moneda']
         : ['ID', 'Fecha', 'Medicamento', 'Fecha caducidad', 'Cantidad', 'Costo Unit DOP'];
     } else {
       headers = type === 'sales'
-        ? ['ID', 'Fecha', 'Cliente', 'Medicamento', 'Cantidad']
+        ? ['ID', 'Fecha', 'Cliente', 'Medicamento', 'Cantidad', 'Precio Venta USD', 'Precio Venta MN', 'Moneda']
         : ['ID', 'Fecha', 'Proveedor', 'Medicamento', 'Cantidad', 'Costo Unit DOP'];
     }
     const lines = [];
@@ -68,13 +81,31 @@ export default function FinanceReports() {
     for (const r of rows) {
       if (view === 'byMedicine') {
         if (type === 'sales') {
-          lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.medicineName || ''}"`, (r.expirationDate ? new Date(r.expirationDate).toISOString().split('T')[0] : ''), r.qty].join(';'));
+          lines.push([
+            r.id, 
+            new Date(r.date).toISOString().split('T')[0], 
+            `"${r.medicineName || ''}"`, 
+            (r.expirationDate ? new Date(r.expirationDate).toISOString().split('T')[0] : ''), 
+            r.qty,
+            Number(r.priceUSD || 0).toFixed(2),
+            Number(r.priceMN || 0).toFixed(2),
+            r.tipoVenta || 'USD'
+          ].join(';'));
         } else {
           lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.medicineName || ''}"`, (r.expirationDate ? new Date(r.expirationDate).toISOString().split('T')[0] : ''), r.qty, Number(r.unitCostDOP || 0).toFixed(2)].join(';'));
         }
       } else {
         if (type === 'sales') {
-          lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.customerName || ''}"`, `"${r.medicineName || ''}"`, r.qty].join(';'));
+          lines.push([
+            r.id, 
+            new Date(r.date).toISOString().split('T')[0], 
+            `"${r.customerName || ''}"`, 
+            `"${r.medicineName || ''}"`, 
+            r.qty,
+            Number(r.priceUSD || 0).toFixed(2),
+            Number(r.priceMN || 0).toFixed(2),
+            r.tipoVenta || 'USD'
+          ].join(';'));
         } else {
           lines.push([r.id, new Date(r.date).toISOString().split('T')[0], `"${r.supplierName || ''}"`, `"${r.medicineName || ''}"`, r.qty, Number(r.unitCostDOP || 0).toFixed(2)].join(';'));
         }
@@ -120,47 +151,60 @@ export default function FinanceReports() {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(5, minmax(200px, 1fr))',
+        gridTemplateColumns: 'repeat(6, minmax(180px, 1fr))',
         gap: '12px',
         alignItems: 'end',
         marginBottom: '16px'
       }}>
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: '#6c757d', marginBottom: 6 }}>Tipo</label>
+          <label style={{ display: 'block', fontSize: 12, color: '#6c757d', marginBottom: 6, fontWeight: '500' }}>Tipo</label>
           <select
             value={type}
             onChange={e => setType(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #dee2e6' }}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: '14px' }}
           >
             <option value="sales">Ventas</option>
             <option value="purchases">Compras</option>
           </select>
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: '#6c757d', marginBottom: 6 }}>Vista</label>
+          <label style={{ display: 'block', fontSize: 12, color: '#6c757d', marginBottom: 6, fontWeight: '500' }}>Vista</label>
           <select
             value={view}
             onChange={e => setView(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #dee2e6' }}
+            style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: '14px' }}
           >
             <option value="byMedicine">Por medicamento</option>
             <option value="byParty">Por cliente/proveedor</option>
           </select>
         </div>
-        {/* Selector de medicamento eliminado: sólo modo por período */}
+        {type === 'sales' && (
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: '#6c757d', marginBottom: 6, fontWeight: '500' }}>Moneda</label>
+            <select
+              value={currency}
+              onChange={e => setCurrency(e.target.value)}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: '14px' }}
+            >
+              <option value="BOTH">💵💴 Ambas</option>
+              <option value="USD">💵 USD</option>
+              <option value="MN">💴 MN</option>
+            </select>
+          </div>
+        )}
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: '#6c757d', marginBottom: 6 }}>Desde</label>
+          <label style={{ display: 'block', fontSize: 12, color: '#6c757d', marginBottom: 6, fontWeight: '500' }}>Desde</label>
           <input type="date" value={start} onChange={e => setStart(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #dee2e6' }} />
+            style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: '14px' }} />
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: 12, color: '#6c757d', marginBottom: 6 }}>Hasta</label>
+          <label style={{ display: 'block', fontSize: 12, color: '#6c757d', marginBottom: 6, fontWeight: '500' }}>Hasta</label>
           <input type="date" value={end} onChange={e => setEnd(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #dee2e6' }} />
+            style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #dee2e6', fontSize: '14px' }} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={fetchData} style={{ padding: '10px 16px', backgroundColor: '#0d6efd', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Consultar</button>
-          <button onClick={handleExportCSV} disabled={!rows.length} style={{ padding: '10px 16px', backgroundColor: rows.length ? '#198754' : '#94d3a2', color: 'white', border: 'none', borderRadius: 6, cursor: rows.length ? 'pointer' : 'not-allowed' }}>Exportar CSV</button>
+          <button onClick={fetchData} style={{ padding: '10px 16px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>🔍 Consultar</button>
+          <button onClick={handleExportCSV} disabled={!rows.length} style={{ padding: '10px 16px', backgroundColor: rows.length ? '#10b981' : '#94d3a2', color: 'white', border: 'none', borderRadius: 6, cursor: rows.length ? 'pointer' : 'not-allowed', fontWeight: '600', fontSize: '14px' }}>📊 Exportar</button>
         </div>
       </div>
 
@@ -172,36 +216,40 @@ export default function FinanceReports() {
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ backgroundColor: '#f8f9fa' }}>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Fecha</th>
+              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Fecha</th>
                 {view === 'byMedicine' ? (
                   type === 'sales' ? (
                     <>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Medicamento</th>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Fecha caducidad</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Cantidad</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Medicamento</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Fecha caducidad</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Cantidad</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Precio Venta</th>
+                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Moneda</th>
                     </>
                   ) : (
                     <>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Medicamento</th>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Fecha caducidad</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Cantidad</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Costo Unit DOP</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Medicamento</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Fecha caducidad</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Cantidad</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Costo Unit DOP</th>
                     </>
                   )
                 ) : (
                   type === 'sales' ? (
                     <>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Cliente</th>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Medicamento</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Cantidad</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Cliente</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Medicamento</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Cantidad</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Precio Venta</th>
+                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Moneda</th>
                     </>
                   ) : (
                     <>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Proveedor</th>
-                      <th style={{ padding: '12px', textAlign: 'left' }}>Medicamento</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Cantidad</th>
-                      <th style={{ padding: '12px', textAlign: 'right' }}>Costo Unit DOP</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Proveedor</th>
+                      <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Medicamento</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Cantidad</th>
+                      <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#475569' }}>Costo Unit DOP</th>
                     </>
                   )
                 )}
@@ -209,36 +257,66 @@ export default function FinanceReports() {
             </thead>
             <tbody>
               {rows.map(r => (
-                <tr key={r.id} style={{ borderBottom: '1px solid #e9ecef' }}>
-                  <td style={{ padding: '12px' }}>{new Date(r.date).toLocaleDateString('es-DO')}</td>
+                <tr key={r.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>{new Date(r.date).toLocaleDateString('es-DO')}</td>
                   {view === 'byMedicine' ? (
                     type === 'sales' ? (
                       <>
-                        <td style={{ padding: '12px' }}>{r.medicineName}</td>
-                        <td style={{ padding: '12px' }}>{r.expirationDate ? new Date(r.expirationDate).toLocaleDateString('es-DO') : '—'}</td>
-                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>{r.qty}</td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>{r.medicineName}</td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#64748b' }}>{r.expirationDate ? new Date(r.expirationDate).toLocaleDateString('es-DO') : '—'}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#1e293b' }}>{r.qty}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#10b981' }}>
+                          {formatCurrency(r.priceUSD, r.priceMN)}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            backgroundColor: r.tipoVenta === 'USD' ? '#dbeafe' : '#fef9c3',
+                            color: r.tipoVenta === 'USD' ? '#1e40af' : '#a16207'
+                          }}>
+                            {r.tipoVenta || 'USD'}
+                          </span>
+                        </td>
                       </>
                     ) : (
                       <>
-                        <td style={{ padding: '12px' }}>{r.medicineName}</td>
-                        <td style={{ padding: '12px' }}>{r.expirationDate ? new Date(r.expirationDate).toLocaleDateString('es-DO') : '—'}</td>
-                        <td style={{ padding: '12px', textAlign: 'right' }}>{r.qty}</td>
-                        <td style={{ padding: '12px', textAlign: 'right' }}>${Number(r.unitCostDOP || 0).toFixed(2)}</td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>{r.medicineName}</td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#64748b' }}>{r.expirationDate ? new Date(r.expirationDate).toLocaleDateString('es-DO') : '—'}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#1e293b' }}>{r.qty}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#ef4444' }}>${Number(r.unitCostDOP || 0).toFixed(2)}</td>
                       </>
                     )
                   ) : (
                     type === 'sales' ? (
                       <>
-                        <td style={{ padding: '12px' }}>{r.customerName}</td>
-                        <td style={{ padding: '12px' }}>{r.medicineName}</td>
-                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>{r.qty}</td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>{r.customerName}</td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>{r.medicineName}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#1e293b' }}>{r.qty}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: 600, fontSize: '14px', color: '#10b981' }}>
+                          {formatCurrency(r.priceUSD, r.priceMN)}
+                        </td>
+                        <td style={{ padding: '12px', textAlign: 'center' }}>
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            backgroundColor: r.tipoVenta === 'USD' ? '#dbeafe' : '#fef9c3',
+                            color: r.tipoVenta === 'USD' ? '#1e40af' : '#a16207'
+                          }}>
+                            {r.tipoVenta || 'USD'}
+                          </span>
+                        </td>
                       </>
                     ) : (
                       <>
-                        <td style={{ padding: '12px' }}>{r.supplierName}</td>
-                        <td style={{ padding: '12px' }}>{r.medicineName}</td>
-                        <td style={{ padding: '12px', textAlign: 'right' }}>{r.qty}</td>
-                        <td style={{ padding: '12px', textAlign: 'right' }}>${Number(r.unitCostDOP || 0).toFixed(2)}</td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>{r.supplierName}</td>
+                        <td style={{ padding: '12px', fontSize: '14px', color: '#1e293b' }}>{r.medicineName}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#1e293b' }}>{r.qty}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontSize: '14px', color: '#ef4444' }}>${Number(r.unitCostDOP || 0).toFixed(2)}</td>
                       </>
                     )
                   )}

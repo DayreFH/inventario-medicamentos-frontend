@@ -827,9 +827,29 @@ router.get('/sales-items-by-period', async (req, res) => {
       include: { customer: true, saleitem: { include: { medicines: true } } },
       orderBy: { date: 'asc' }
     });
+
+    // Obtener tasa de cambio para conversiones
+    const exchangeRate = await prisma.ExchangeRateMN.findFirst({
+      where: { isActive: true },
+      orderBy: { date: 'desc' }
+    });
+    const mnRate = exchangeRate ? Number(exchangeRate.sellRate) : 50;
+
     const rows = [];
     for (const s of sales) {
+      const tipoVenta = s.tipoVenta || 'USD';
+      
       for (const it of s.saleitem) {
+        let priceUSD = 0, priceMN = 0;
+        
+        if (tipoVenta === 'USD') {
+          priceUSD = Number(it.precio_propuesto_usd || 0);
+          priceMN = priceUSD * mnRate;
+        } else if (tipoVenta === 'MN') {
+          priceMN = Number(it.precio_venta_mn || 0);
+          priceUSD = priceMN / mnRate;
+        }
+
         rows.push({
           id: it.id,
           date: s.date,
@@ -838,6 +858,9 @@ router.get('/sales-items-by-period', async (req, res) => {
           medicineCode: it.medicines?.codigo,
           medicineName: it.medicines?.nombreComercial,
           qty: it.qty,
+          priceUSD: Number(priceUSD.toFixed(2)),
+          priceMN: Number(priceMN.toFixed(2)),
+          tipoVenta: tipoVenta,
           expirationDate: minExpiryByMed.get(it.medicineId) || null
         });
       }
