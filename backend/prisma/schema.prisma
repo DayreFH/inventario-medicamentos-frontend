@@ -67,18 +67,19 @@ model MedicinePrice {
   @@map("medicine_prices")
 }
 
-model MedicinePriceVentaMN {
-  id             Int      @id @default(autoincrement())
-  medicineId     Int
-  precioVentaMN  Decimal  @db.Decimal(10, 2)
-  activo         Boolean  @default(true)
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-  medicine       Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
-
-  @@index([medicineId])
-  @@map("medicine_prices_venta_mn")
-}
+// TEMPORARY COMMENT - STEP 1
+// model MedicinePriceVentaMN {
+//   id             Int      @id @default(autoincrement())
+//   medicineId     Int
+//   precioVentaMN  Decimal  @db.Decimal(10, 2)
+//   activo         Boolean  @default(true)
+//   created_at     DateTime @default(now())
+//   updated_at     DateTime @updatedAt
+//   medicine       Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+//
+//   @@index([medicineId])
+//   @@map("medicine_prices_venta_mn")
+// }
 
 model MedicineParam {
   id                  Int      @id @default(autoincrement())
