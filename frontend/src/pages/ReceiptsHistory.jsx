@@ -3,13 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/http';
 import ComboBox from '../components/ComboBox';
 
+function receiptComboLabel(r) {
+  const n = Array.isArray(r?.receiptitem) ? r.receiptitem.length : 0;
+  const sup = r?.supplier?.name ?? '-';
+  const d = r?.date ? new Date(r.date).toLocaleDateString() : '-';
+  return `#${r.id} — ${sup} — ${n} ítems (${d})`;
+}
+
+function receiptSearchText(r) {
+  const sup = r?.supplier?.name ?? '';
+  const d = r?.date ? new Date(r.date).toLocaleDateString() : '';
+  return `${r.id} ${sup} ${d}`.trim();
+}
+
 export default function ReceiptsHistory() {
   const navigate = useNavigate();
 
   const [medicines, setMedicines] = useState([]);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
 
+  /** YYYY-MM-DD vacío = sin filtrar por día (mismo comportamiento que antes) */
+  const [filterDay, setFilterDay] = useState('');
+
   const [receipts, setReceipts] = useState([]);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -23,7 +40,6 @@ export default function ReceiptsHistory() {
         if (!mounted) return;
         setMedicines(Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []));
       } catch (e) {
-        // No bloquea la pantalla; sin lista no hay filtro por select.
         if (!mounted) return;
         setMedicines([]);
       }
@@ -37,7 +53,7 @@ export default function ReceiptsHistory() {
 
   useEffect(() => {
     setPage(1);
-  }, [selectedMedicine?.id]);
+  }, [selectedMedicine?.id, filterDay]);
 
   useEffect(() => {
     let mounted = true;
@@ -52,11 +68,13 @@ export default function ReceiptsHistory() {
       try {
         setLoading(true);
         setError(null);
+        const dayParam = filterDay.trim();
         const { data } = await api.get('/receipts', {
           params: {
             medicineId: Number(selectedMedicine.id),
             page,
-            limit: 20
+            limit: 20,
+            ...(dayParam ? { day: dayParam } : {})
           }
         });
         if (!mounted) return;
@@ -74,7 +92,19 @@ export default function ReceiptsHistory() {
     return () => {
       mounted = false;
     };
-  }, [selectedMedicine?.id, page]);
+  }, [selectedMedicine?.id, page, filterDay]);
+
+  useEffect(() => {
+    setSelectedReceipt((prev) => {
+      if (!prev) return null;
+      return receipts.some((r) => r.id === prev.id) ? prev : null;
+    });
+  }, [receipts]);
+
+  const openEdit = () => {
+    if (!selectedReceipt?.id) return;
+    navigate(`/receipts/${selectedReceipt.id}/edit`);
+  };
 
   return (
     <div style={{ padding: '16px' }}>
@@ -87,7 +117,7 @@ export default function ReceiptsHistory() {
       }}>
         <div style={{ fontSize: '18px', fontWeight: 700 }}>Historial de compras</div>
         <div style={{ fontSize: '12px', opacity: 0.85 }}>
-          Busca un medicamento y edita la entrada que corresponde.
+          Elige medicamento; opcionalmente un día; luego la entrada y abre la edición.
         </div>
       </div>
 
@@ -98,7 +128,12 @@ export default function ReceiptsHistory() {
         padding: '12px',
         marginBottom: '16px'
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '12px', alignItems: 'end' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 200px 1fr',
+          gap: '16px',
+          alignItems: 'end'
+        }}>
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: 600 }}>
               Medicamento
@@ -124,12 +159,35 @@ export default function ReceiptsHistory() {
             />
           </div>
 
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: 600 }}>
+              Fecha de la entrada
+            </label>
+            <input
+              type="date"
+              value={filterDay}
+              onChange={(e) => setFilterDay(e.target.value)}
+              disabled={!selectedMedicine?.id}
+              style={{
+                width: '100%',
+                padding: '8px 10px',
+                borderRadius: '6px',
+                fontSize: '13px',
+                border: '1px solid #ced4da',
+                boxSizing: 'border-box'
+              }}
+            />
+            <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
+              Vacío = cualquier día
+            </div>
+          </div>
+
           <div style={{ textAlign: 'right', fontSize: '12px', color: '#555' }}>
             {selectedMedicine?.id && (
               <div>
                 {loading ? 'Cargando...' : (
                   <>
-                    Resultados: <b>{pagination?.total ?? receipts.length}</b>
+                    Entradas: <b>{pagination?.total ?? receipts.length}</b>
                   </>
                 )}
               </div>
@@ -147,112 +205,122 @@ export default function ReceiptsHistory() {
         backgroundColor: 'white',
         borderRadius: '8px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-        overflow: 'hidden'
+        overflow: 'visible'
       }}>
         <div style={{ padding: '12px 12px 0 12px', fontWeight: 700, color: '#2c3e50' }}>
-          Entradas encontradas
+          Entrada a editar
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#f3f4f6' }}>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: '1px solid #e5e7eb' }}>Fecha</th>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: '1px solid #e5e7eb' }}>Proveedor</th>
-                <th style={{ textAlign: 'left', padding: '10px', borderBottom: '1px solid #e5e7eb' }}>Items</th>
-                <th style={{ textAlign: 'right', padding: '10px', borderBottom: '1px solid #e5e7eb' }}>Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!selectedMedicine?.id && (
-                <tr>
-                  <td colSpan={4} style={{ padding: '14px', color: '#6b7280' }}>
-                    Selecciona un medicamento para ver las entradas.
-                  </td>
-                </tr>
-              )}
-              {selectedMedicine?.id && !loading && receipts.length === 0 && (
-                <tr>
-                  <td colSpan={4} style={{ padding: '14px', color: '#6b7280' }}>
-                    No se encontraron entradas para este medicamento.
-                  </td>
-                </tr>
-              )}
-              {receipts.map(r => (
-                <tr key={r.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '10px' }}>
-                    {r?.date ? new Date(r.date).toLocaleDateString() : '-'}
-                  </td>
-                  <td style={{ padding: '10px' }}>
-                    {r?.supplier?.name ?? '-'}
-                  </td>
-                  <td style={{ padding: '10px' }}>
-                    {Array.isArray(r?.receiptitem) ? r.receiptitem.length : 0}
-                  </td>
-                  <td style={{ padding: '10px', textAlign: 'right' }}>
-                    <button
-                      onClick={() => navigate(`/receipts/${r.id}/edit`)}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        border: '1px solid #cbd5e1',
-                        background: 'white',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                    >
-                      Editar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {selectedMedicine?.id && pagination && (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '12px',
-            background: '#fafafa'
-          }}>
-            <button
-              disabled={!pagination?.hasPrev}
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              style={{
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                background: pagination?.hasPrev ? 'white' : '#f3f4f6',
-                cursor: pagination?.hasPrev ? 'pointer' : 'not-allowed',
-                color: '#111827'
-              }}
-            >
-              Anterior
-            </button>
-            <div style={{ fontSize: '12px', color: '#4b5563' }}>
-              Página <b>{pagination.page}</b> de <b>{pagination.totalPages}</b>
+        <div style={{ padding: '12px 16px 16px 16px' }}>
+          {!selectedMedicine?.id && (
+            <div style={{ padding: '8px 0', color: '#6b7280', fontSize: '13px' }}>
+              Selecciona un medicamento para listar entradas.
             </div>
-            <button
-              disabled={!pagination?.hasNext}
-              onClick={() => setPage(p => p + 1)}
-              style={{
-                padding: '6px 10px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                background: pagination?.hasNext ? 'white' : '#f3f4f6',
-                cursor: pagination?.hasNext ? 'pointer' : 'not-allowed',
-                color: '#111827'
-              }}
-            >
-              Siguiente
-            </button>
-          </div>
-        )}
+          )}
+
+          {selectedMedicine?.id && !loading && receipts.length === 0 && (
+            <div style={{ padding: '8px 0', color: '#6b7280', fontSize: '13px' }}>
+              {filterDay.trim()
+                ? 'No hay entradas ese día con este medicamento.'
+                : 'No se encontraron entradas para este medicamento.'}
+            </div>
+          )}
+
+          {selectedMedicine?.id && receipts.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', alignItems: 'end' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: 600 }}>
+                  Entrada (esta página)
+                </label>
+                <ComboBox
+                  items={receipts}
+                  value={selectedReceipt}
+                  onChange={(r) => setSelectedReceipt(r || null)}
+                  getItemKey={(r) => r.id}
+                  getItemLabel={receiptComboLabel}
+                  getSearchText={receiptSearchText}
+                  inputPlaceholder="Busca por #id, proveedor o fecha..."
+                  maxResults={30}
+                  disabled={loading}
+                  styles={{
+                    root: { position: 'relative', zIndex: 2 },
+                    input: {
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      fontSize: '13px'
+                    },
+                    dropdown: {
+                      borderRadius: '8px',
+                      zIndex: 100
+                    }
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                disabled={!selectedReceipt?.id}
+                onClick={openEdit}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: selectedReceipt?.id ? '#1976d2' : '#e5e7eb',
+                  color: selectedReceipt?.id ? 'white' : '#9ca3af',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  cursor: selectedReceipt?.id ? 'pointer' : 'not-allowed',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Abrir edición
+              </button>
+            </div>
+          )}
+
+          {selectedMedicine?.id && pagination && pagination.totalPages > 1 && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginTop: '16px',
+              paddingTop: '12px',
+              borderTop: '1px solid #f0f0f0'
+            }}>
+              <button
+                disabled={!pagination?.hasPrev}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: pagination?.hasPrev ? 'white' : '#f3f4f6',
+                  cursor: pagination?.hasPrev ? 'pointer' : 'not-allowed',
+                  color: '#111827'
+                }}
+              >
+                Anterior
+              </button>
+              <div style={{ fontSize: '12px', color: '#4b5563' }}>
+                Página <b>{pagination.page}</b> de <b>{pagination.totalPages}</b>
+              </div>
+              <button
+                disabled={!pagination?.hasNext}
+                onClick={() => setPage((p) => p + 1)}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #cbd5e1',
+                  background: pagination?.hasNext ? 'white' : '#f3f4f6',
+                  cursor: pagination?.hasNext ? 'pointer' : 'not-allowed',
+                  color: '#111827'
+                }}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
-
