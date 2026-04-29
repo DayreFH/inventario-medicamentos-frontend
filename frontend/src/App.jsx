@@ -12,6 +12,8 @@ import Medicines from './pages/Medicines';
 import Suppliers from './pages/Suppliers';
 import Customers from './pages/Customers';
 import Receipts from './pages/Receipts';
+import ReceiptsHistory from './pages/ReceiptsHistory';
+import ReceiptEdit from './pages/ReceiptEdit';
 import SalesMN from './pages/SalesMN';
 import SalesUSD from './pages/SalesUSD';
 import ExchangeRates from './pages/ExchangeRates';
@@ -204,11 +206,27 @@ export default function App() {
             </PrivateRoute>
           } />
           
-          {/* OPERACIONES */}
+          {/* ENTRADAS / SALIDAS */}
           <Route path="/receipts" element={
             <PrivateRoute requiredPermission="receipts">
               <ProtectedLayout>
                 <Receipts />
+              </ProtectedLayout>
+            </PrivateRoute>
+          } />
+
+          <Route path="/receipts/history" element={
+            <PrivateRoute requiredPermission="receipts">
+              <ProtectedLayout>
+                <ReceiptsHistory />
+              </ProtectedLayout>
+            </PrivateRoute>
+          } />
+
+          <Route path="/receipts/:id/edit" element={
+            <PrivateRoute requiredPermission="receipts">
+              <ProtectedLayout>
+                <ReceiptEdit />
               </ProtectedLayout>
             </PrivateRoute>
           } />

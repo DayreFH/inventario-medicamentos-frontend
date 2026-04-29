@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/http';
+import ComboBox from './ComboBox';
 
 const SaleFormAdvanced = () => {
   // Estados para tasas y configuración
@@ -17,9 +18,6 @@ const SaleFormAdvanced = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('efectivo');
   
-  // Estados para filtros
-  const [medicineFilter, setMedicineFilter] = useState('');
-  const [customerFilter, setCustomerFilter] = useState('');
   
   // Estados para items de venta
   const [saleItems, setSaleItems] = useState([]);
@@ -365,8 +363,6 @@ const SaleFormAdvanced = () => {
     });
     setSelectedMedicine(null);
     setSelectedCustomer(null);
-    setMedicineFilter('');
-    setCustomerFilter('');
   };
 
   const removeItem = (itemId) => {
@@ -412,8 +408,6 @@ const SaleFormAdvanced = () => {
       });
       setSelectedMedicine(null);
       setSelectedCustomer(null);
-      setMedicineFilter('');
-      setCustomerFilter('');
       
       // Recargar medicamentos para actualizar stock
       await loadMedicines();
@@ -432,15 +426,6 @@ const SaleFormAdvanced = () => {
   const calculateTotalVenta = () => {
     return saleItems.reduce((sum, item) => sum + (item.subtotalVenta || 0), 0);
   };
-
-  const filteredMedicines = (medicines || []).filter(med =>
-    med.nombreComercial?.toLowerCase().includes(medicineFilter.toLowerCase()) ||
-    med.codigo?.toLowerCase().includes(medicineFilter.toLowerCase())
-  );
-
-  const filteredCustomers = (customers || []).filter(customer =>
-    customer.name?.toLowerCase().includes(customerFilter.toLowerCase())
-  );
 
   // Mostrar pantalla de carga inicial
   if (initialLoading) {
@@ -561,41 +546,29 @@ const SaleFormAdvanced = () => {
             <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: '500' }}>
               Medicamento
             </label>
-            <input
-              type="text"
-              value={medicineFilter}
-              onChange={(e) => setMedicineFilter(e.target.value)}
-              placeholder="Buscar..."
-              style={{
-                width: '100%',
-                padding: '6px 8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                fontSize: '12px',
-                marginBottom: '6px'
+            <ComboBox
+              items={medicines || []}
+              value={selectedMedicine}
+              onChange={(med) => {
+                if (med) handleMedicineSelect(med);
+                else setSelectedMedicine(null);
+              }}
+              getItemKey={(m) => m.id}
+              getItemLabel={(m) => String(m.nombreComercial || '')}
+              getSearchText={(m) =>
+                `${m.codigo || ''} ${m.nombreComercial || ''}`.trim()
+              }
+              inputPlaceholder="Escribe nombre o código..."
+              maxResults={30}
+              styles={{
+                input: {
+                  padding: '6px 8px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  fontSize: '12px'
+                }
               }}
             />
-            <select
-              value={selectedMedicine?.id || ''}
-              onChange={(e) => {
-                const med = filteredMedicines.find(m => m.id === parseInt(e.target.value));
-                handleMedicineSelect(med);
-              }}
-              style={{
-                width: '100%',
-                padding: '6px 8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                fontSize: '12px'
-              }}
-            >
-              <option value="">Seleccionar medicamento...</option>
-              {filteredMedicines.map(med => (
-                <option key={med.id} value={med.id}>
-                  {med.codigo} - {med.nombreComercial}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Cliente */}
@@ -603,41 +576,26 @@ const SaleFormAdvanced = () => {
             <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: '500' }}>
               Cliente
             </label>
-            <input
-              type="text"
-              value={customerFilter}
-              onChange={(e) => setCustomerFilter(e.target.value)}
-              placeholder="Buscar..."
-              style={{
-                width: '100%',
-                padding: '6px 8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                fontSize: '12px',
-                marginBottom: '6px'
+            <ComboBox
+              items={customers || []}
+              value={selectedCustomer}
+              onChange={(cust) => {
+                if (cust) handleCustomerSelect(cust);
+                else setSelectedCustomer(null);
+              }}
+              getItemKey={(c) => c.id}
+              getItemLabel={(c) => String(c.name || '')}
+              inputPlaceholder="Escribe nombre..."
+              maxResults={30}
+              styles={{
+                input: {
+                  padding: '6px 8px',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  fontSize: '12px'
+                }
               }}
             />
-            <select
-              value={selectedCustomer?.id || ''}
-              onChange={(e) => {
-                const cust = filteredCustomers.find(c => c.id === parseInt(e.target.value));
-                handleCustomerSelect(cust);
-              }}
-              style={{
-                width: '100%',
-                padding: '6px 8px',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                fontSize: '12px'
-              }}
-            >
-              <option value="">Seleccionar cliente...</option>
-              {filteredCustomers.map(cust => (
-                <option key={cust.id} value={cust.id}>
-                  {cust.name}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Precio de Venta MN (Read-only) */}

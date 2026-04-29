@@ -38,12 +38,19 @@ const Navigation = () => {
       ]
     },
     {
-      title: 'OPERACIONES',
-      icon: '🔄',
+      title: 'ENTRADAS',
+      icon: '📥',
       children: [
-        { title: 'Entradas', path: '/receipts' },
-        { title: 'Salidas MN', path: '/sales/mn' },
-        { title: 'Salidas USD', path: '/sales/usd' },
+        { title: 'Entradas nuevas', path: '/receipts' },
+        { title: 'Historial de compras', path: '/receipts/history' }
+      ]
+    },
+    {
+      title: 'SALIDAS',
+      icon: '📤',
+      children: [
+        { title: 'Salidas en MN', path: '/sales/mn' },
+        { title: 'Salidas en USD', path: '/sales/usd' },
         { title: 'Facturación', path: '/operaciones/facturacion' }
       ]
     },

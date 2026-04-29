@@ -1,10 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api/http';
 import DatosTab from '../components/Medicines/DatosTab';
 import PreciosTab from '../components/Medicines/PreciosTab';
 import ParametrosTab from '../components/Medicines/ParametrosTab';
 
+/** Debe coincidir con el query que arma GET /api/topbar/search para medicamentos */
+export const MEDICINE_OPEN_QUERY_PARAM = 'medicineId';
+
 const Medicines = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const medicineIdFromSearch = searchParams.get(MEDICINE_OPEN_QUERY_PARAM);
+
+  const clearMedicineSearchParam = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete(MEDICINE_OPEN_QUERY_PARAM);
+        return next;
+      },
+      { replace: true }
+    );
+  }, [setSearchParams]);
+
   const [activeTab, setActiveTab] = useState('datos');
   const [medicines, setMedicines] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -20,6 +38,12 @@ const Medicines = () => {
   useEffect(() => {
     loadMedicines(1);
   }, []);
+
+  useEffect(() => {
+    if (medicineIdFromSearch) {
+      setActiveTab('datos');
+    }
+  }, [medicineIdFromSearch]);
 
   const loadMedicines = async (page = 1) => {
     try {
@@ -215,7 +239,13 @@ const Medicines = () => {
           boxSizing: 'border-box'
         }}>
         {activeTab === 'datos' && (
-          <DatosTab medicines={medicines} onRefresh={() => loadMedicines(pagination.page)} loading={loading} />
+          <DatosTab
+            medicines={medicines}
+            onRefresh={() => loadMedicines(pagination.page)}
+            loading={loading}
+            medicineIdFromSearch={medicineIdFromSearch}
+            onConsumedMedicineFromSearch={clearMedicineSearchParam}
+          />
         )}
         {activeTab === 'precios' && (
           <PreciosTab medicines={medicines} onRefresh={() => loadMedicines(pagination.page)} loading={loading} />

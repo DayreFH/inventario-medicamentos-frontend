@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/http';
+import ComboBox from '../ComboBox';
 
 const PreciosTab = ({ medicines, onRefresh, loading }) => {
   const [selectedMedicine, setSelectedMedicine] = useState('');
+  const [selectedMedicineObj, setSelectedMedicineObj] = useState(null);
   
   // Estados para Precio de Compra DOP
   const [precioCompraDOPForm, setPrecioCompraDOPForm] = useState({
@@ -182,27 +184,29 @@ const PreciosTab = ({ medicines, onRefresh, loading }) => {
         <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#2c3e50', fontSize: '16px' }}>
           Seleccionar Medicamento
         </label>
-        <select
-          value={selectedMedicine}
-          onChange={(e) => setSelectedMedicine(e.target.value)}
-          style={{
-            width: '100%',
-            maxWidth: '600px',
-            padding: '12px 16px',
-            border: '2px solid #3498db',
-            borderRadius: '6px',
-            fontSize: '15px',
-            backgroundColor: 'white',
-            fontWeight: '500'
-          }}
-        >
-          <option value="">Seleccionar medicamento...</option>
-          {medicines.map(medicine => (
-            <option key={medicine.id} value={medicine.id}>
-              {medicine.codigo} - {medicine.nombreComercial}
-            </option>
-          ))}
-        </select>
+        <div style={{ width: '100%', maxWidth: '600px' }}>
+          <ComboBox
+            items={medicines}
+            value={selectedMedicineObj}
+            onChange={(m) => {
+              setSelectedMedicineObj(m || null);
+              setSelectedMedicine(m?.id ? String(m.id) : '');
+            }}
+            getItemKey={(m) => m.id}
+            getItemLabel={(m) => `${m.codigo} - ${m.nombreComercial}`}
+            inputPlaceholder="Escribe nombre o código..."
+            maxResults={30}
+            styles={{
+              input: {
+                padding: '12px 16px',
+                border: '2px solid #3498db',
+                borderRadius: '6px',
+                fontSize: '15px',
+                fontWeight: '500'
+              }
+            }}
+          />
+        </div>
       </div>
 
       {/* DOS COLUMNAS: Compra DOP y Venta MN */}

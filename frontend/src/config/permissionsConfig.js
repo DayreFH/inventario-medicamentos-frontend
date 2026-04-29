@@ -255,6 +255,7 @@ export const ROUTE_PERMISSION_MAP = {
   '/suppliers': 'suppliers',
   
   '/receipts': 'receipts',
+  '/receipts/history': 'receipts',
   '/sales': 'sales',
   '/operaciones/facturacion': 'invoicing.manage',
   

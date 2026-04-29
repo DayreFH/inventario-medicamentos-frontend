@@ -167,10 +167,10 @@ const TopBar = () => {
     }
   };
 
-  // Navegar a resultado de búsqueda
-  const handleResultClick = (path) => {
-    console.log('🔍 Click en resultado, navegando a:', path);
-    console.log('🔍 Resultado completo:', path);
+  // Navegar a resultado de búsqueda (`path` viene del backend; ej. /medicines?medicineId=…)
+  const handleResultClick = (result) => {
+    const path = typeof result === 'string' ? result : result?.path;
+    if (!path || typeof path !== 'string') return;
     navigate(path);
     setShowSearchResults(false);
     setSearchQuery('');
@@ -306,7 +306,7 @@ const TopBar = () => {
               searchResults.map((result, index) => (
                 <div
                   key={index}
-                  onClick={() => handleResultClick(result.path)}
+                  onClick={() => handleResultClick(result)}
                   style={{
                     padding: '12px 16px',
                     borderBottom: index < searchResults.length - 1 ? '1px solid #e2e8f0' : 'none',

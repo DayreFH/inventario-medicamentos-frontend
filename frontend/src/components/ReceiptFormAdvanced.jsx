@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../api/http';
+import ComboBox from './ComboBox';
 
 const ReceiptFormAdvanced = () => {
   const [exchangeRate, setExchangeRate] = useState({
@@ -244,28 +245,17 @@ const ReceiptFormAdvanced = () => {
     setCurrentItem({ ...currentItem, medicineId: medicine.id });
     
     // Cargar precios del medicamento
-    // Si hay un proveedor seleccionado, filtrar por proveedor
     try {
       if (medicine.precios && medicine.precios.length > 0) {
-        let filteredPrices = medicine.precios;
-        
-        // Si hay un proveedor seleccionado, filtrar precios por proveedor
+        // Regla: no permitir precios genéricos (siempre debe existir proveedor real).
+        // Si hay un proveedor preseleccionado (por URL), filtrar a ese proveedor.
+        let filteredPrices = medicine.precios.filter(p => p?.supplierId && p?.supplier);
         if (selectedSupplier) {
-          // Mostrar precios del proveedor seleccionado o precios genéricos (sin proveedor)
-          filteredPrices = medicine.precios.filter(precio => 
-            !precio.supplierId || precio.supplierId === selectedSupplier.id
-          );
-          
-          // Priorizar precios del proveedor sobre precios genéricos
-          const supplierPrices = filteredPrices.filter(p => p.supplierId === selectedSupplier.id);
-          const genericPrices = filteredPrices.filter(p => !p.supplierId);
-          
-          // Si hay precios del proveedor, mostrarlos primero; si no, mostrar genéricos
-          filteredPrices = supplierPrices.length > 0 ? supplierPrices : genericPrices;
+          filteredPrices = filteredPrices.filter(p => p.supplierId === selectedSupplier.id);
         }
-        
+
         setMedicinePrices(filteredPrices);
-        console.log('Precios del medicamento cargados:', filteredPrices);
+        console.log('Precios del medicamento cargados (sin genéricos):', filteredPrices);
       } else {
         setMedicinePrices([]);
         console.log('Medicamento sin precios configurados');
@@ -282,15 +272,10 @@ const ReceiptFormAdvanced = () => {
     
     // Si hay un medicamento seleccionado, filtrar precios por proveedor
     if (selectedMedicine && selectedMedicine.precios) {
-      const filteredPrices = selectedMedicine.precios.filter(precio => 
-        !precio.supplierId || precio.supplierId === supplier.id
-      );
-      
-      // Priorizar precios del proveedor sobre precios genéricos
-      const supplierPrices = filteredPrices.filter(p => p.supplierId === supplier.id);
-      const genericPrices = filteredPrices.filter(p => !p.supplierId);
-      
-      const finalPrices = supplierPrices.length > 0 ? supplierPrices : genericPrices;
+      // Regla: no permitir genéricos. Solo precios con supplier real.
+      const finalPrices = selectedMedicine.precios
+        .filter(p => p?.supplierId && p?.supplier)
+        .filter(p => p.supplierId === supplier.id);
       setMedicinePrices(finalPrices);
       
       // Si había un precio seleccionado que no coincide con el nuevo proveedor, limpiarlo
@@ -305,9 +290,13 @@ const ReceiptFormAdvanced = () => {
 
   const handlePriceSelect = (price) => {
     setSelectedPrice(price);
+    // Derivar proveedor desde el precio seleccionado (obligatorio).
+    const supplierFromPrice = price?.supplier || null;
+    setSelectedSupplier(supplierFromPrice);
     setCurrentItem({ 
       ...currentItem, 
       priceId: price.id,
+      supplierId: supplierFromPrice?.id || '',
       unitCost: price.precioCompraUnitario,
       weightKg: selectedMedicine?.pesoKg || 0
     });
@@ -321,13 +310,13 @@ const ReceiptFormAdvanced = () => {
         return;
       }
       
-      if (!selectedSupplier) {
-        alert('Por favor seleccione un proveedor');
-        return;
-      }
-      
       if (!selectedPrice) {
         alert('Por favor seleccione un precio de compra');
+        return;
+      }
+
+      if (!selectedPrice?.supplierId || !selectedPrice?.supplier) {
+        alert('El precio seleccionado no tiene proveedor. Seleccione un precio con proveedor.');
         return;
       }
       
@@ -343,11 +332,11 @@ const ReceiptFormAdvanced = () => {
       }
       
       // Validar que los IDs existan
-      if (!selectedMedicine.id || !selectedSupplier.id || !selectedPrice.id) {
+      if (!selectedMedicine.id || !selectedPrice.id || !selectedPrice.supplierId) {
         alert('Error: Faltan datos del medicamento, proveedor o precio. Por favor, selecciónelos nuevamente.');
         console.error('IDs faltantes:', {
           medicineId: selectedMedicine?.id,
-          supplierId: selectedSupplier?.id,
+          supplierId: selectedPrice?.supplierId,
           priceId: selectedPrice?.id
         });
         return;
@@ -355,7 +344,7 @@ const ReceiptFormAdvanced = () => {
       
       console.log('Agregando item con:', {
         medicineId: selectedMedicine.id,
-        supplierId: selectedSupplier.id,
+        supplierId: selectedPrice.supplierId,
         priceId: selectedPrice.id,
         quantity: currentItem.quantity
       });
@@ -363,7 +352,7 @@ const ReceiptFormAdvanced = () => {
       // Verificar si ya existe el mismo medicamento en la tabla
       const existingItemIndex = receiptItems.findIndex(item => 
         item.medicineId === selectedMedicine.id && 
-        item.supplierId === selectedSupplier.id &&
+        item.supplierId === selectedPrice.supplierId &&
         item.priceId === selectedPrice.id
       );
 
@@ -416,7 +405,7 @@ const ReceiptFormAdvanced = () => {
         const newItem = {
           id: Date.now(),
           medicineId: selectedMedicine.id,
-          supplierId: selectedSupplier.id,
+          supplierId: selectedPrice.supplierId,
           priceId: selectedPrice.id,
           quantity: currentItem.quantity,
           lot: currentItem.lot || '',
@@ -433,7 +422,7 @@ const ReceiptFormAdvanced = () => {
           laboratorio: selectedMedicine.laboratorio || 'N/A',
           
           // Datos del proveedor
-          proveedor: selectedSupplier.name || '',
+          proveedor: selectedPrice?.supplier?.name || '',
           
           // Precios y cálculos
           precioCompra: unitCostDOP,
@@ -616,14 +605,13 @@ const ReceiptFormAdvanced = () => {
     }
   };
 
-  const filteredMedicines = medicines.filter(medicine =>
-    medicine.nombreComercial.toLowerCase().includes(medicineFilter.toLowerCase()) ||
-    medicine.codigo.toLowerCase().includes(medicineFilter.toLowerCase())
-  );
+  // Nota: medicineFilter ya no se usa como UI separada; se mantiene por compatibilidad
+  // con lógica existente (limpieza, etc.) pero el combobox maneja su propio texto.
+  const filteredMedicines = medicines;
 
-  const filteredSuppliers = suppliers.filter(supplier =>
-    supplier.name.toLowerCase().includes(supplierFilter.toLowerCase())
-  );
+  // Nota: la UI de proveedor fue removida (se deriva desde el precio seleccionado).
+  // Se mantiene suppliers/supplierFilter para compatibilidad con preselección por URL.
+  const filteredSuppliers = suppliers;
 
   // Debug log para verificar el estado
   console.log('Estado actual - exchangeRate:', exchangeRate);
@@ -706,82 +694,35 @@ const ReceiptFormAdvanced = () => {
               <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: '500' }}>
                 Medicamento
               </label>
-              <input
-                type="text"
-                value={medicineFilter}
-                onChange={(e) => setMedicineFilter(e.target.value)}
-                placeholder="Buscar..."
-                style={{
-                  width: '100%',
-                  padding: '6px 8px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  marginBottom: '6px'
+              <ComboBox
+                items={filteredMedicines}
+                value={selectedMedicine}
+                onChange={(medicine) => {
+                  if (medicine) {
+                    handleMedicineSelect(medicine);
+                  } else {
+                    setSelectedMedicine(null);
+                    setMedicinePrices([]);
+                    setSelectedPrice(null);
+                    setSelectedSupplier(null);
+                    setCurrentItem((prev) => ({
+                      ...prev,
+                      medicineId: '',
+                      supplierId: '',
+                      priceId: '',
+                      unitCost: 0,
+                      weightKg: 0
+                    }));
+                  }
+                }}
+                getItemKey={(m) => m.id}
+                getItemLabel={(m) => `${m.codigo} - ${m.nombreComercial}`}
+                inputPlaceholder="Escribe nombre o código..."
+                maxResults={30}
+                styles={{
+                  root: { marginBottom: '0px' }
                 }}
               />
-              <select
-                value={selectedMedicine?.id || ''}
-                onChange={(e) => {
-                  const medicine = medicines.find(m => m.id === parseInt(e.target.value));
-                  if (medicine) handleMedicineSelect(medicine);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '6px 8px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  fontSize: '12px'
-                }}
-              >
-                <option value="">Seleccionar medicamento...</option>
-                {filteredMedicines.map(medicine => (
-                  <option key={medicine.id} value={medicine.id}>
-                    {medicine.codigo} - {medicine.nombreComercial}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: '#666', marginBottom: '4px', fontWeight: '500' }}>
-                Proveedor
-              </label>
-              <input
-                type="text"
-                value={supplierFilter}
-                onChange={(e) => setSupplierFilter(e.target.value)}
-                placeholder="Buscar..."
-                style={{
-                  width: '100%',
-                  padding: '6px 8px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  marginBottom: '6px'
-                }}
-              />
-              <select
-                value={selectedSupplier?.id || ''}
-                onChange={(e) => {
-                  const supplier = suppliers.find(s => s.id === parseInt(e.target.value));
-                  if (supplier) handleSupplierSelect(supplier);
-                }}
-                style={{
-                  width: '100%',
-                  padding: '6px 8px',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                  fontSize: '12px'
-                }}
-              >
-                <option value="">Seleccionar proveedor...</option>
-                {filteredSuppliers.map(supplier => (
-                  <option key={supplier.id} value={supplier.id}>
-                    {supplier.name}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div>
@@ -814,24 +755,13 @@ const ReceiptFormAdvanced = () => {
                 </option>
                 {medicinePrices.map(price => (
                   <option key={price.id} value={price.id}>
-                    {price.supplier 
-                      ? `${parseFloat(price.precioCompraUnitario).toFixed(2)} DOP - ${price.supplier.name}` 
-                      : `${parseFloat(price.precioCompraUnitario).toFixed(2)} DOP - (Genérico)`
-                    }
+                    {`${parseFloat(price.precioCompraUnitario).toFixed(2)} DOP - ${price.supplier?.name || ''}`}
                   </option>
                 ))}
               </select>
               {selectedPrice && (
                 <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
-                  {selectedPrice.supplier 
-                    ? `Proveedor: ${selectedPrice.supplier.name}` 
-                    : 'Precio genérico (sin proveedor específico)'
-                  }
-                </div>
-              )}
-              {selectedMedicine && !selectedSupplier && (
-                <div style={{ fontSize: '11px', color: '#ff9800', marginTop: '4px' }}>
-                  💡 Selecciona un proveedor para ver precios específicos
+                  {`Proveedor: ${selectedPrice.supplier?.name || ''}`}
                 </div>
               )}
               

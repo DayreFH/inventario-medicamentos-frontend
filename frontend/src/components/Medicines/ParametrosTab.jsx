@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/http';
+import ComboBox from '../ComboBox';
 
 const ParametrosTab = ({ medicines, onRefresh, loading }) => {
   const [selectedMedicine, setSelectedMedicine] = useState('');
+  const [selectedMedicineObj, setSelectedMedicineObj] = useState(null);
   const [parametros, setParametros] = useState({
     stockMinimo: 10,
     alertaCaducidad: 30,
@@ -79,25 +81,26 @@ const ParametrosTab = ({ medicines, onRefresh, loading }) => {
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#495057' }}>
             Seleccionar Medicamento
           </label>
-          <select
-            value={selectedMedicine}
-            onChange={(e) => setSelectedMedicine(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '12px',
-              border: '1px solid #ced4da',
-              borderRadius: '4px',
-              fontSize: '14px',
-              backgroundColor: 'white'
+          <ComboBox
+            items={medicines}
+            value={selectedMedicineObj}
+            onChange={(m) => {
+              setSelectedMedicineObj(m || null);
+              setSelectedMedicine(m?.id ? String(m.id) : '');
             }}
-          >
-            <option value="">Seleccionar medicamento...</option>
-            {medicines.map(medicine => (
-              <option key={medicine.id} value={medicine.id}>
-                {medicine.codigo} - {medicine.nombreComercial}
-              </option>
-            ))}
-          </select>
+            getItemKey={(m) => m.id}
+            getItemLabel={(m) => `${m.codigo} - ${m.nombreComercial}`}
+            inputPlaceholder="Escribe nombre o código..."
+            maxResults={30}
+            styles={{
+              input: {
+                padding: '12px',
+                border: '1px solid #ced4da',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }
+            }}
+          />
         </div>
 
         {selectedMedicine && (

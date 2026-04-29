@@ -1,18 +1,96 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import api from '../../api/http';
 
-const DatosTab = ({ medicines, onRefresh, loading }) => {
-  const [form, setForm] = useState({
-    codigo: '',
-    nombreComercial: '',
-    nombreGenerico: '',
-    formaFarmaceutica: 'comprimidos',
-    concentracion: 'mg',
-    presentacion: 'blister',
-    pesoKg: ''
-  });
+const emptyForm = () => ({
+  codigo: '',
+  nombreComercial: '',
+  nombreGenerico: '',
+  formaFarmaceutica: 'comprimidos',
+  concentracion: 'mg',
+  presentacion: 'blister',
+  pesoKg: ''
+});
+
+const DatosTab = ({
+  medicines,
+  onRefresh,
+  loading,
+  medicineIdFromSearch = null,
+  onConsumedMedicineFromSearch
+}) => {
+  const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const editingIdRef = useRef(editingId);
+  editingIdRef.current = editingId;
+
+  const applyMedicineForEdit = useCallback((medicine) => {
+    setEditingId(medicine.id);
+    setForm({
+      codigo: String(medicine.codigo ?? ''),
+      nombreComercial: medicine.nombreComercial,
+      nombreGenerico: medicine.nombreGenerico,
+      formaFarmaceutica: medicine.formaFarmaceutica,
+      concentracion: medicine.concentracion,
+      presentacion: medicine.presentacion,
+      pesoKg: medicine.pesoKg != null && medicine.pesoKg !== '' ? String(medicine.pesoKg) : ''
+    });
+  }, []);
+
+  const fetchSuggestedCodigo = useCallback(async () => {
+    try {
+      const { data } = await api.get('/medicines/next-codigo');
+      if (data?.codigo == null) return;
+      setForm((f) => {
+        if (editingIdRef.current) return f;
+        return { ...f, codigo: String(data.codigo) };
+      });
+    } catch (e) {
+      console.error('No se pudo obtener código sugerido:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (medicineIdFromSearch) return;
+    fetchSuggestedCodigo();
+  }, [fetchSuggestedCodigo, medicineIdFromSearch]);
+
+  useEffect(() => {
+    const raw = (medicineIdFromSearch ?? '').trim();
+    if (!raw) return;
+
+    const id = Number(raw);
+    if (!Number.isInteger(id) || id < 1) {
+      onConsumedMedicineFromSearch?.();
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { data } = await api.get(`/medicines/${id}`);
+        if (cancelled) return;
+        applyMedicineForEdit(data);
+      } catch (error) {
+        if (!cancelled) {
+          const msg =
+            error?.response?.data?.detail ||
+            error?.response?.data?.error ||
+            'No se pudo cargar el medicamento';
+          alert(msg);
+        }
+      } finally {
+        if (!cancelled) {
+          onConsumedMedicineFromSearch?.();
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [medicineIdFromSearch, applyMedicineForEdit, onConsumedMedicineFromSearch]);
 
   const formasFarmaceuticas = [
     { value: 'comprimidos', label: 'Comprimidos' },
@@ -47,24 +125,25 @@ const DatosTab = ({ medicines, onRefresh, loading }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (editingId && !String(form.codigo ?? '').trim()) {
+      alert('El código es obligatorio al editar.');
+      return;
+    }
     setSaving(true);
     try {
       if (editingId) {
         await api.put(`/medicines/${editingId}`, form);
       } else {
-        await api.post('/medicines', form);
+        const payload = {
+          ...form,
+          codigo: String(form.codigo ?? '').trim()
+        };
+        await api.post('/medicines', payload);
       }
-      setForm({
-        codigo: '',
-        nombreComercial: '',
-        nombreGenerico: '',
-        formaFarmaceutica: 'comprimidos',
-        concentracion: 'mg',
-        presentacion: 'blister',
-        pesoKg: ''
-      });
+      setForm(emptyForm());
       setEditingId(null);
       onRefresh();
+      fetchSuggestedCodigo();
     } catch (error) {
       const msg = error?.response?.data?.detail || error?.response?.data?.error || 'Error al guardar';
       alert(msg);
@@ -73,30 +152,12 @@ const DatosTab = ({ medicines, onRefresh, loading }) => {
     }
   };
 
-  const startEdit = (medicine) => {
-    setEditingId(medicine.id);
-    setForm({
-      codigo: medicine.codigo,
-      nombreComercial: medicine.nombreComercial,
-      nombreGenerico: medicine.nombreGenerico,
-      formaFarmaceutica: medicine.formaFarmaceutica,
-      concentracion: medicine.concentracion,
-      presentacion: medicine.presentacion,
-      pesoKg: medicine.pesoKg
-    });
-  };
+  const startEdit = (medicine) => applyMedicineForEdit(medicine);
 
   const cancelEdit = () => {
     setEditingId(null);
-    setForm({
-      codigo: '',
-      nombreComercial: '',
-      nombreGenerico: '',
-      formaFarmaceutica: 'comprimidos',
-      concentracion: 'mg',
-      presentacion: 'blister',
-      pesoKg: ''
-    });
+    setForm(emptyForm());
+    fetchSuggestedCodigo();
   };
 
   const deleteMedicine = async (id) => {
@@ -132,13 +193,14 @@ const DatosTab = ({ medicines, onRefresh, loading }) => {
             <div style={{ display: 'grid', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '4px', fontWeight: '500', color: '#495057' }}>
-                  Código *
+                  Código {editingId ? '*' : '(siguiente sugerido, editable)'}
                 </label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   value={form.codigo}
                   onChange={(e) => setForm({...form, codigo: e.target.value})}
-                  required
+                  required={!!editingId}
                   style={{
                     width: '100%',
                     padding: '8px 12px',
